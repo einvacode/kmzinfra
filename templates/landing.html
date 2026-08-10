@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ settings.company_name }} - Landing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="ambient-shape"></div>
+
+    <header class="topbar public-topbar">
+        <div class="brand-wrap">
+            <strong>{{ settings.company_name }}</strong>
+        </div>
+        <a class="mini-link" href="{{ url_for('login') }}">Login</a>
+    </header>
+
+    <section class="landing-shell">
+        <div class="landing-copy">
+            <h1>{{ settings.landing_title }}</h1>
+            <p class="lead">{{ settings.landing_tagline }}</p>
+            <p>{{ settings.landing_description }}</p>
+            <a class="cta" href="{{ settings.landing_button_url }}">{{ settings.landing_button_text }}</a>
+        </div>
+        <aside class="landing-company panel">
+            <h2>Data Perusahaan</h2>
+            <p><strong>Nama:</strong> {{ settings.company_name }}</p>
+            <p><strong>Alamat:</strong> {{ settings.company_address }}</p>
+            <p><strong>Telepon:</strong> {{ settings.company_phone }}</p>
+            <p><strong>Email:</strong> {{ settings.company_email }}</p>
+        </aside>
+    </section>
+</body>
+</html>

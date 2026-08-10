@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - {{ settings.company_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dashboard-page has-mobile-bottom-nav">
+    <div class="ambient-shape"></div>
+
+    <header class="topbar">
+        <div class="brand-wrap">
+            <strong>{{ settings.company_name }}</strong>
+            <span class="muted">Halo, {{ username }}</span>
+            <button type="button" class="menu-toggle" data-target="mainMenu" aria-label="Toggle Menu">Menu</button>
+        </div>
+        <nav class="menu-bar" id="mainMenu">
+            <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
+            <a href="{{ url_for('backup_page') }}">Backup Restore</a>
+            <a href="{{ url_for('settings_page') }}">Pengaturan</a>
+            <a href="{{ url_for('landing_page') }}" target="_blank" rel="noreferrer">Lihat Landing</a>
+            <form action="{{ url_for('logout') }}" method="post" class="inline-form">
+                <button type="submit" class="mini-link danger">Logout</button>
+            </form>
+        </nav>
+    </header>
+
+    <nav class="bottom-nav" aria-label="Navigasi Mobile">
+        <a href="{{ url_for('dashboard') }}" class="active"><span class="nav-icon">DB</span><span class="nav-label">Dashboard</span></a>
+        <a href="{{ url_for('backup_page') }}"><span class="nav-icon">BK</span><span class="nav-label">Backup</span></a>
+        <a href="{{ url_for('settings_page') }}"><span class="nav-icon">ST</span><span class="nav-label">Pengaturan</span></a>
+    </nav>
+
+    <header class="hero">
+        <h1>GeoFiber Infra Board</h1>
+        <p>Pemetaan koordinat infrastruktur TIANG, ODP Fiber Optik, CLOSURE, dan tipe custom berbasis SQLite.</p>
+        <div class="hero-actions">
+            <button type="button" id="compactModeBtn" class="btn ghost compact-btn">Compact Mode: Off</button>
+        </div>
+    </header>
+
+    <main class="layout">
+        <section class="panel map-panel">
+            <div class="panel-header">
+                <h2>Peta Infrastruktur</h2>
+                <select id="filterType">
+                    <option value="">Semua Tipe</option>
+                </select>
+            </div>
+            <div id="map"></div>
+        </section>
+
+        <section class="panel form-panel">
+            <div class="panel-header">
+                <h2>Input Titik</h2>
+                <span id="modeBadge" class="badge">Mode: Tambah</span>
+            </div>
+
+            <form id="infraForm">
+                <input type="hidden" id="itemId">
+
+                <label for="name">Nama Lokasi</label>
+                <input id="name" name="name" required placeholder="Contoh: TIANG-ALPHA-01">
+
+                <label for="infra_type">Jenis Infrastruktur</label>
+                <select id="infra_type" name="infra_type" required></select>
+
+                <details class="asset-manager">
+                    <summary>Kelola Jenis Infrastruktur</summary>
+                    <div class="asset-manager-body">
+                        <p class="helper">Tambah tipe sendiri, misalnya CLOSURE, HANDHOLE, MANHOLE, dan lainnya.</p>
+                        <div class="asset-inline-form">
+                            <input id="newInfraType" placeholder="Contoh: HANDHOLE">
+                            <button type="button" id="addInfraTypeBtn" class="btn ghost">Tambah Tipe</button>
+                        </div>
+                        <div id="infraTypeList" class="asset-type-list"></div>
+                    </div>
+                </details>
+
+                <label for="asset_name">Jenis Aset</label>
+                <select id="asset_name" name="asset_name" required></select>
+
+                <details class="asset-manager">
+                    <summary>Kelola Jenis Aset</summary>
+                    <div class="asset-manager-body">
+                        <p class="helper">Tambah aset sesuai tipe infrastruktur aktif di atas.</p>
+                        <div class="asset-inline-form">
+                            <input id="newAssetName" placeholder="Contoh: TIANG_11M atau ODP_MANHOLE">
+                            <button type="button" id="addAssetBtn" class="btn ghost">Tambah Aset</button>
+                        </div>
+                        <div id="assetTypeList" class="asset-type-list"></div>
+                    </div>
+                </details>
+
+                <div class="grid-2">
+                    <div>
+                        <label for="latitude">Latitude</label>
+                        <input id="latitude" name="latitude" required placeholder="-6.200000">
+                    </div>
+                    <div>
+                        <label for="longitude">Longitude</label>
+                        <input id="longitude" name="longitude" required placeholder="106.816666">
+                    </div>
+                </div>
+
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="AKTIF">AKTIF</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="NON_AKTIF">NON AKTIF</option>
+                </select>
+
+                <label for="address">Alamat</label>
+                <textarea id="address" name="address" rows="2" placeholder="Alamat singkat"></textarea>
+
+                <label for="notes">Catatan</label>
+                <textarea id="notes" name="notes" rows="3" placeholder="Keterangan tambahan"></textarea>
+
+                <div class="actions">
+                    <button type="submit" class="btn primary">Simpan</button>
+                    <button type="button" id="resetBtn" class="btn ghost">Reset</button>
+                </div>
+                <div class="actions">
+                    <button type="button" id="gpsBtn" class="btn ghost">Ambil GPS Saya</button>
+                    <button type="button" id="gpsCenterBtn" class="btn ghost">GPS + Fokus Peta</button>
+                </div>
+                <p class="helper">Tips: Klik peta atau pakai GPS untuk mengisi latitude dan longitude otomatis.</p>
+                <p class="helper">Untuk akses GPS di handphone, aktifkan izin lokasi pada browser. HTTPS lebih disarankan.</p>
+            </form>
+        </section>
+
+        <section class="panel list-panel">
+            <div class="panel-header">
+                <h2>Daftar Titik</h2>
+                <strong id="itemCount">0 data</strong>
+            </div>
+            <div id="listContainer" class="list-container"></div>
+        </section>
+
+        <section class="panel line-panel">
+            <div class="panel-header">
+                <h2>Jalur Antar Infrastruktur</h2>
+            </div>
+            <label for="linkFromId">Titik Asal (Server/Tiang/ODP)</label>
+            <select id="linkFromId"></select>
+
+            <label for="linkToId">Titik Tujuan (ODP/Tiang Lain)</label>
+            <select id="linkToId"></select>
+
+            <label for="linkName">Nama Jalur (opsional)</label>
+            <input id="linkName" placeholder="Contoh: JALUR_SERVER_A_KE_ODP_01">
+
+            <div class="actions">
+                <button type="button" id="addLinkBtn" class="btn ghost">Tambah Jalur</button>
+                <button type="button" id="exportKmzBtn" class="btn primary">Export KMZ Jalur</button>
+            </div>
+            <div id="linkListContainer" class="list-container compact-list"></div>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="{{ url_for('static', filename='nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

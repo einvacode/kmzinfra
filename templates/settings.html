@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pengaturan - {{ settings.company_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="has-mobile-bottom-nav">
+    <div class="ambient-shape"></div>
+
+    <header class="topbar">
+        <div class="brand-wrap">
+            <strong>{{ settings.company_name }}</strong>
+            <span class="muted">Halo, {{ username }}</span>
+            <button type="button" class="menu-toggle" data-target="mainMenu" aria-label="Toggle Menu">Menu</button>
+        </div>
+        <nav class="menu-bar" id="mainMenu">
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('backup_page') }}">Backup Restore</a>
+            <a href="{{ url_for('settings_page') }}" class="active">Pengaturan</a>
+            <a href="{{ url_for('landing_page') }}" target="_blank" rel="noreferrer">Lihat Landing</a>
+            <form action="{{ url_for('logout') }}" method="post" class="inline-form">
+                <button type="submit" class="mini-link danger">Logout</button>
+            </form>
+        </nav>
+    </header>
+
+    <nav class="bottom-nav" aria-label="Navigasi Mobile">
+        <a href="{{ url_for('dashboard') }}"><span class="nav-icon">DB</span><span class="nav-label">Dashboard</span></a>
+        <a href="{{ url_for('backup_page') }}"><span class="nav-icon">BK</span><span class="nav-label">Backup</span></a>
+        <a href="{{ url_for('settings_page') }}" class="active"><span class="nav-icon">ST</span><span class="nav-label">Pengaturan</span></a>
+    </nav>
+
+    <main class="settings-layout">
+        <section class="panel settings-panel">
+            <h1>Pengaturan Data Perusahaan</h1>
+            <form id="companySettingsForm">
+                <label for="company_name">Nama Perusahaan</label>
+                <input id="company_name" name="company_name" value="{{ settings.company_name }}" required>
+
+                <label for="company_address">Alamat</label>
+                <textarea id="company_address" name="company_address" rows="2" required>{{ settings.company_address }}</textarea>
+
+                <div class="grid-2">
+                    <div>
+                        <label for="company_phone">Telepon</label>
+                        <input id="company_phone" name="company_phone" value="{{ settings.company_phone }}" required>
+                    </div>
+                    <div>
+                        <label for="company_email">Email</label>
+                        <input id="company_email" name="company_email" type="email" value="{{ settings.company_email }}" required>
+                    </div>
+                </div>
+
+                <h2>Pengaturan Landing Page</h2>
+
+                <label for="landing_title">Judul Landing</label>
+                <input id="landing_title" name="landing_title" value="{{ settings.landing_title }}" required>
+
+                <label for="landing_tagline">Tagline</label>
+                <input id="landing_tagline" name="landing_tagline" value="{{ settings.landing_tagline }}" required>
+
+                <label for="landing_description">Deskripsi</label>
+                <textarea id="landing_description" name="landing_description" rows="3" required>{{ settings.landing_description }}</textarea>
+
+                <div class="grid-2">
+                    <div>
+                        <label for="landing_button_text">Teks Tombol</label>
+                        <input id="landing_button_text" name="landing_button_text" value="{{ settings.landing_button_text }}" required>
+                    </div>
+                    <div>
+                        <label for="landing_button_url">URL Tombol</label>
+                        <input id="landing_button_url" name="landing_button_url" value="{{ settings.landing_button_url }}" required>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="btn primary">Simpan Pengaturan</button>
+                    <a href="{{ url_for('landing_page') }}" class="btn ghost link-btn" target="_blank" rel="noreferrer">Preview Landing</a>
+                </div>
+                <p id="settingsMessage" class="helper"></p>
+            </form>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='settings.js') }}"></script>
+</body>
+</html>
