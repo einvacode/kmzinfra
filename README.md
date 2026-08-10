@@ -1,275 +1,194 @@
 # KMZ Infra Mapper
 
-Aplikasi web sederhana untuk pemetaan koordinat infrastruktur:
-- TIANG
-- ODP Fiber Optik
-- CLOSURE
-- dan tipe custom lain sesuai kebutuhan
+Aplikasi web pemetaan koordinat infrastruktur fiber berbasis Flask + SQLite (tanpa Docker).
 
-Backend menggunakan Flask dan database SQLite (tanpa Docker).
+## Fitur Utama
 
-## Fitur
-
-- Landing page publik
-- Login page untuk akses dashboard
-- Menu bar utama setelah login (Dashboard, Pengaturan, Logout)
-- Peta interaktif (Leaflet + OpenStreetMap)
-- Input titik koordinat via form atau klik peta
-- Ambil koordinat langsung dari GPS handphone (geolocation browser)
-- Master jenis infrastruktur dinamis (bisa tambah sendiri: TIANG, ODP, CLOSURE, dll)
-- Master jenis aset per tipe infrastruktur (jenis aset menyesuaikan tipe terpilih)
-- CRUD data infrastruktur (tambah, lihat, edit, hapus)
-- Filter berdasarkan jenis infrastruktur
-- Pengaturan data perusahaan
-- Pengaturan tampilan landing page
-- Panel manajemen ID teknisi/operator lapangan
-- Panel update aplikasi dari GitHub (cek update + update sekarang)
-- Jalur garis hubung antar titik infrastruktur (server, tiang, ODP, closure)
-- Export KMZ berisi titik dan jalur koneksi
-- Tampilan mobile responsif dengan hamburger menu dan bottom navigation
-- Compact mode dashboard untuk layar handphone
-- Penyimpanan data lokal di SQLite: `data/kmzinfra.db`
+- Landing page publik dan login dashboard
+- Dashboard pemetaan titik infrastruktur
+- Master jenis infrastruktur dinamis (TIANG, ODP, CLOSURE, dll)
+- Master jenis aset per tipe infrastruktur
+- Jalur garis hubung antar titik (server/tiang/ODP)
+- Export KMZ (titik + jalur)
+- Backup dan restore database dari menu aplikasi
+- Panel ID teknisi/operator lapangan
+- Panel pengaturan data perusahaan dan konten landing page
+- Panel cek update dari GitHub + tombol update aplikasi
+- Tampilan mobile responsif (hamburger menu, bottom nav, compact mode)
 
 ## Menjalankan di Windows
 
 Prasyarat:
-- Python 3.10+ terpasang
+- Python 3.10+
 
 Langkah cepat:
-1. Buka folder project ini.
+1. Buka folder project.
 2. Jalankan `start.bat`.
-3. Buka browser ke `http://127.0.0.1:5000`.
+3. Buka `http://127.0.0.1:5000`.
 
-Default login pertama:
+Default login awal:
 - Username: `admin`
 - Password: `admin123`
 
-Halaman aplikasi:
-- Landing page: `/`
-- Login page: `/login`
-- Dashboard (setelah login): `/dashboard`
-- Backup & Restore (setelah login): `/backup`
-- Pengaturan perusahaan & landing page (setelah login): `/settings`
+## Install Otomatis Debian/Ubuntu
 
-## Install Cepat Debian/Ubuntu
+Installer otomatis tersedia di file `install.sh`.
 
-Tersedia script installer otomatis: `install.sh`.
-
-Contoh penggunaan:
+### 1) Jalankan installer
 
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-Contoh opsi:
+### 2) Opsi installer yang tersedia
 
 ```bash
 ./install.sh --app-dir /opt/kmzinfra --port 5000 --domain mydomain.com
 ./install.sh --no-nginx
 ```
 
-Yang dilakukan script:
-1. Install dependency sistem (`python3`, `venv`, `pip`, `nginx`, dll).
-2. Deploy source code ke folder target.
-3. Buat virtual environment dan install requirements.
-4. Buat service `systemd` bernama `kmzinfra`.
-5. (Default) konfigurasi reverse proxy Nginx ke aplikasi.
+Opsi:
+- `--app-dir`: folder deploy aplikasi (default `/opt/kmzinfra`)
+- `--app-user`: user service (default `www-data`)
+- `--app-group`: group service (default `www-data`)
+- `--port`: port internal gunicorn (default `5000`)
+- `--domain`: nilai `server_name` nginx (default `_`)
+- `--no-nginx`: lewati konfigurasi nginx
 
-### Catatan fitur Update Dari GitHub
+### 3) Apa yang dilakukan install.sh
 
-Panel update tersedia di menu Pengaturan.
+1. Install dependency sistem (python3, python3-venv, pip, rsync, nginx, dll).
+2. Copy source code ke folder deploy.
+3. Buat virtualenv dan install `requirements.txt`.
+4. Buat environment file `/etc/default/kmzinfra`.
+5. Buat service systemd `kmzinfra`.
+6. Konfigurasi nginx (kecuali pakai `--no-nginx`).
 
-Default: tombol `Update Sekarang` dinonaktifkan di sisi server untuk keamanan.
+### 4) Verifikasi setelah install
 
-Aktifkan dengan environment variable:
+```bash
+sudo systemctl status kmzinfra
+sudo journalctl -u kmzinfra -n 100 --no-pager
+```
+
+Jika nginx aktif:
+
+```bash
+sudo nginx -t
+sudo systemctl status nginx
+```
+
+## Halaman Aplikasi
+
+- Landing page: `/`
+- Login: `/login`
+- Dashboard: `/dashboard`
+- Backup Restore: `/backup`
+- Pengaturan: `/settings`
+
+## Akses Dari Jaringan LAN
+
+Aplikasi bind ke `0.0.0.0` saat mode development Windows (`start.bat`), sehingga bisa diakses perangkat lain pada jaringan yang sama.
+
+Contoh akses:
+- `http://IP-PC:5000`
+
+Catatan:
+- Jika tidak bisa diakses, buka port 5000 di firewall.
+
+## Catatan GPS Handphone
+
+Browser mobile biasanya menolak geolocation jika aplikasi diakses via HTTP dengan IP LAN.
+
+Gunakan salah satu:
+- HTTPS (direkomendasikan produksi)
+- localhost
+
+## Backup dan Restore
+
+Menu Backup Restore ada di halaman `/backup`.
+
+Fitur:
+1. Buat backup database SQLite
+2. Refresh daftar backup
+3. Download file backup
+4. Restore dari backup terpilih
+
+Saat restore, aplikasi otomatis membuat backup pengaman `pre_restore_...`.
+
+## Panel Update Dari GitHub
+
+Panel update tersedia di halaman `/settings`.
+
+Fitur:
+1. Cek update (bandingkan local commit vs remote)
+2. Update sekarang (git pull dari server)
+
+### Enable tombol Update Sekarang
+
+Secara default update via web dinonaktifkan untuk keamanan.
+
+Edit file environment:
+
+```bash
+sudo nano /etc/default/kmzinfra
+```
+
+Tambahkan/ubah:
 
 ```bash
 KMZINFRA_ENABLE_WEB_UPDATE=1
-```
-
-Opsional (remote dan branch update):
-
-```bash
 KMZINFRA_UPDATE_REMOTE=origin
 KMZINFRA_UPDATE_BRANCH=main
 ```
 
-## Fitur Jalur KMZ
-
-Di dashboard tersedia panel Jalur Antar Infrastruktur:
-1. Pilih Titik Asal dan Titik Tujuan.
-2. Isi Nama Jalur (opsional).
-3. Klik Tambah Jalur untuk membuat garis hubung di peta.
-4. Klik Export KMZ Jalur untuk mengunduh file KMZ.
-
-Output KMZ berisi:
-- Folder Titik Infrastruktur
-- Folder Jalur Infrastruktur (LineString antar titik)
-
-## Akses Dari Semua IP (LAN)
-
-Aplikasi default berjalan dengan bind `0.0.0.0`, jadi bisa diakses dari perangkat lain dalam jaringan yang sama.
-
-Langkah:
-1. Jalankan aplikasi di PC/laptop.
-2. Cari IP perangkat (contoh Windows: `ipconfig`, ambil IPv4 Address).
-3. Akses dari perangkat lain: `http://IP-PC:5000`.
-
-Catatan:
-- Jika tidak bisa diakses, izinkan port `5000` di Windows Firewall.
-- Host/port bisa diubah via environment variable:
-    - `KMZINFRA_HOST` (default `0.0.0.0`)
-    - `KMZINFRA_PORT` (default `5000`)
-    - `KMZINFRA_DEBUG` (default `1`)
-
-## Backup dan Restore
-
-Menu Backup & Restore tersedia di menu bar setelah login (halaman `/backup`).
-
-Fitur:
-1. `Buat Backup Sekarang`: membuat snapshot SQLite ke folder `backups/`.
-2. `Refresh Daftar Backup`: memuat ulang daftar file backup.
-3. `Download Backup`: mengunduh file backup terpilih.
-4. `Restore Backup`: memulihkan database dari file backup terpilih.
-
-Catatan keamanan data:
-- Saat restore, aplikasi otomatis membuat backup pengaman dengan prefix `pre_restore_` sebelum mengganti database aktif.
-
-## Akses dari Handphone + GPS
-
-1. Pastikan laptop/PC dan handphone berada di jaringan Wi-Fi yang sama.
-2. Jalankan aplikasi di laptop/PC.
-3. Di handphone, buka `http://IP-LAPTOP:5000`.
-4. Tekan tombol `Ambil GPS Saya` atau `GPS + Fokus Peta`.
-5. Izinkan akses lokasi saat browser meminta permission.
-
-Catatan:
-- Browser mobile (Chrome/Safari) umumnya menolak geolocation jika aplikasi dibuka lewat HTTP pada IP LAN (contoh: http://192.168.x.x:5000).
-- Geolocation biasanya hanya diizinkan pada HTTPS atau localhost.
-- Untuk penggunaan produksi/public, jalankan aplikasi di domain HTTPS (misalnya melalui Nginx + SSL di Proxmox).
-
-Troubleshooting:
-- Jika muncul pesan `Python tidak ditemukan`, install Python 3.10+ dari python.org lalu centang `Add Python to PATH` saat instalasi.
-- Setelah install Python, tutup lalu buka lagi terminal/VS Code, kemudian jalankan ulang `start.bat`.
-
-## Menjalankan manual (opsional)
+Lalu restart service:
 
 ```bash
-py -3 -m venv .venv   # jika py tersedia
-# atau
-python -m venv .venv
+sudo systemctl restart kmzinfra
+```
+
+## Menjalankan Manual (Opsional)
+
+Windows:
+
+```bash
+py -3 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
 
-## Struktur Project
+Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+## Struktur Project (Terbaru)
 
 ```text
 kmzinfra/
 ├─ app.py
-├─ requirements.txt
+├─ install.sh
 ├─ start.bat
+├─ requirements.txt
 ├─ data/
-│  └─ kmzinfra.db (otomatis dibuat)
-├─ templates/
-│  └─ index.html
-└─ static/
-   ├─ style.css
-   └─ app.js
+├─ backups/
+├─ static/
+│  ├─ app.js
+│  ├─ backup.js
+│  ├─ nav.js
+│  ├─ settings.js
+│  └─ style.css
+└─ templates/
+   ├─ landing.html
+   ├─ login.html
+   ├─ dashboard.html
+   ├─ backup.html
+   └─ settings.html
 ```
-
-## Deploy ke Proxmox (VM / LXC, tanpa Docker)
-
-Contoh asumsi:
-- OS guest: Ubuntu 22.04
-- Aplikasi diletakkan di: `/opt/kmzinfra`
-- User service: `www-data`
-- Port internal app: `5000`
-
-### 1) Install dependency sistem
-
-```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip nginx
-```
-
-### 2) Deploy source code
-
-```bash
-sudo mkdir -p /opt/kmzinfra
-sudo chown -R $USER:$USER /opt/kmzinfra
-# copy source code ke /opt/kmzinfra
-cd /opt/kmzinfra
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 3) Uji jalan lokal di server
-
-```bash
-source /opt/kmzinfra/.venv/bin/activate
-python /opt/kmzinfra/app.py
-```
-
-### 4) Buat systemd service Gunicorn
-
-Buat file `/etc/systemd/system/kmzinfra.service`:
-
-```ini
-[Unit]
-Description=KMZ Infra Mapper (Flask + Gunicorn)
-After=network.target
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/opt/kmzinfra
-Environment="PATH=/opt/kmzinfra/.venv/bin"
-ExecStart=/opt/kmzinfra/.venv/bin/gunicorn -w 2 -b 127.0.0.1:5000 app:app
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Aktifkan service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable kmzinfra
-sudo systemctl start kmzinfra
-sudo systemctl status kmzinfra
-```
-
-### 5) Reverse proxy Nginx
-
-Buat file `/etc/nginx/sites-available/kmzinfra`:
-
-```nginx
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Aktifkan konfigurasi:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/kmzinfra /etc/nginx/sites-enabled/kmzinfra
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-Selesai. Aplikasi dapat diakses via IP VM/LXC Proxmox.
