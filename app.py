@@ -6,6 +6,7 @@ import io
 import os
 import shutil
 import sqlite3
+import subprocess
 from pathlib import Path
 from typing import Any
 import zipfile
@@ -43,6 +44,10 @@ DEFAULT_ASSETS: dict[str, list[str]] = {
     "ODP_FIBER_OPTIK": ["ODP_POLE", "ODP_WALL", "ODP_CLOSURE"],
     "CLOSURE": ["CLOSURE_INLINE", "CLOSURE_DOME"],
 }
+
+UPDATE_REMOTE = os.getenv("KMZINFRA_UPDATE_REMOTE", "origin")
+UPDATE_BRANCH = os.getenv("KMZINFRA_UPDATE_BRANCH", "main")
+ENABLE_WEB_UPDATE = os.getenv("KMZINFRA_ENABLE_WEB_UPDATE", "0") == "1"
 
 
 def get_db() -> sqlite3.Connection:
@@ -317,6 +322,111 @@ def _kml_escape(text: str) -> str:
         .replace('"', "&quot;")
         .replace("'", "&apos;")
     )
+
+
+def _run_git_command(args: list[str], timeout: int = 20) -> str:
+    process = subprocess.run(
+        ["git", *args],
+        cwd=BASE_DIR,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+    if process.returncode != 0:
+        message = (process.stderr or process.stdout or "Perintah git gagal").strip()
+        raise RuntimeError(message)
+    return process.stdout.strip()
+
+
+def get_update_status() -> dict[str, Any]:
+    if not (BASE_DIR / ".git").exists():
+        return {
+            "repository_found": False,
+            "has_update": False,
+            "can_update": False,
+            "message": "Folder aplikasi ini bukan repository git.",
+        }
+
+    try:
+        branch = _run_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
+        local_hash = _run_git_command(["rev-parse", "HEAD"])
+        _run_git_command(["fetch", UPDATE_REMOTE, branch])
+        remote_hash = _run_git_command(["rev-parse", f"{UPDATE_REMOTE}/{branch}"])
+        has_update = local_hash != remote_hash
+
+        return {
+            "repository_found": True,
+            "branch": branch,
+            "local_hash": local_hash,
+            "remote_hash": remote_hash,
+            "has_update": has_update,
+            "can_update": ENABLE_WEB_UPDATE,
+            "message": "Update tersedia." if has_update else "Aplikasi sudah versi terbaru.",
+        }
+    except Exception as exc:
+        return {
+            "repository_found": True,
+            "has_update": False,
+            "can_update": ENABLE_WEB_UPDATE,
+            "message": f"Gagal mengecek update: {exc}",
+        }
+
+
+def apply_git_update() -> dict[str, Any]:
+    if not ENABLE_WEB_UPDATE:
+        return {
+            "ok": False,
+            "message": "Web update nonaktif. Set KMZINFRA_ENABLE_WEB_UPDATE=1 untuk mengaktifkan.",
+        }
+
+    if not (BASE_DIR / ".git").exists():
+        return {
+            "ok": False,
+            "message": "Folder aplikasi ini bukan repository git.",
+        }
+
+    try:
+        branch = _run_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
+        _run_git_command(["fetch", UPDATE_REMOTE, branch])
+        pull_output = _run_git_command(["pull", "--ff-only", UPDATE_REMOTE, branch], timeout=60)
+
+        requirements_path = BASE_DIR / "requirements.txt"
+        pip_output = ""
+        if requirements_path.exists():
+            process = subprocess.run(
+                [
+                    str(BASE_DIR / ".venv" / "Scripts" / "python.exe")
+                    if os.name == "nt"
+                    else str(BASE_DIR / ".venv" / "bin" / "python"),
+                    "-m",
+                    "pip",
+                    "install",
+                    "-r",
+                    str(requirements_path),
+                ],
+                cwd=BASE_DIR,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+            if process.returncode == 0:
+                pip_output = (process.stdout or "").strip()
+            else:
+                pip_output = (process.stderr or process.stdout or "").strip()
+
+        return {
+            "ok": True,
+            "message": "Update selesai. Jika berjalan via systemd, restart service untuk memuat perubahan baru.",
+            "pull_output": pull_output,
+            "pip_output": pip_output,
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "message": f"Update gagal: {exc}",
+        }
 
 
 def create_backup_file() -> Path:
@@ -1011,6 +1121,21 @@ def export_kmz():
 def get_company_settings():
     settings = get_site_settings()
     return jsonify({"ok": True, "data": settings})
+
+
+@app.route("/api/system/update-status", methods=["GET"])
+@login_required
+def system_update_status():
+    return jsonify({"ok": True, "data": get_update_status()})
+
+
+@app.route("/api/system/apply-update", methods=["POST"])
+@login_required
+def system_apply_update():
+    result = apply_git_update()
+    if not result.get("ok"):
+        return _error(str(result.get("message", "Update gagal.")), 422)
+    return jsonify({"ok": True, "data": result})
 
 
 @app.route("/api/field-staff", methods=["GET"])

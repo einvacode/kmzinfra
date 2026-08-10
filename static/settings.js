@@ -4,6 +4,9 @@ const fieldStaffForm = document.getElementById("fieldStaffForm");
 const fieldStaffList = document.getElementById("fieldStaffList");
 const fieldStaffMessage = document.getElementById("fieldStaffMessage");
 const refreshFieldStaffBtn = document.getElementById("refreshFieldStaffBtn");
+const checkUpdateBtn = document.getElementById("checkUpdateBtn");
+const applyUpdateBtn = document.getElementById("applyUpdateBtn");
+const updateMessage = document.getElementById("updateMessage");
 
 function escapeHtml(text) {
     return String(text)
@@ -25,6 +28,14 @@ function setFieldStaffMessage(message, isError = false) {
     }
     fieldStaffMessage.textContent = message;
     fieldStaffMessage.classList.toggle("error-text", isError);
+}
+
+function setUpdateMessage(message, isError = false) {
+    if (!updateMessage) {
+        return;
+    }
+    updateMessage.textContent = message;
+    updateMessage.classList.toggle("error-text", isError);
 }
 
 function renderFieldStaffList(items) {
@@ -101,6 +112,47 @@ async function deleteFieldStaff(id) {
         throw new Error(result.message || "Gagal menghapus ID lapangan.");
     }
     await loadFieldStaff();
+}
+
+async function checkSystemUpdate() {
+    const response = await fetch("/api/system/update-status");
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal mengecek status update.");
+    }
+
+    const data = result.data;
+    if (!data.repository_found) {
+        setUpdateMessage(data.message || "Repository git tidak ditemukan.", true);
+        return;
+    }
+
+    const localShort = (data.local_hash || "").slice(0, 8);
+    const remoteShort = (data.remote_hash || "").slice(0, 8);
+    const base = `Branch: ${data.branch || "-"} | Local: ${localShort || "-"} | Remote: ${remoteShort || "-"}`;
+
+    if (data.has_update) {
+        const tail = data.can_update
+            ? "Update tersedia. Klik 'Update Sekarang'."
+            : "Update tersedia, tapi web update nonaktif di server (set KMZINFRA_ENABLE_WEB_UPDATE=1).";
+        setUpdateMessage(`${base} | ${tail}`, !data.can_update);
+        return;
+    }
+
+    setUpdateMessage(`${base} | Aplikasi sudah versi terbaru.`);
+}
+
+async function applySystemUpdate() {
+    const response = await fetch("/api/system/apply-update", { method: "POST" });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal menjalankan update aplikasi.");
+    }
+
+    const data = result.data || {};
+    const pullOutput = (data.pull_output || "").replace(/\s+/g, " ").trim();
+    const shortPull = pullOutput ? ` | Git: ${pullOutput.slice(0, 140)}` : "";
+    setUpdateMessage(`${data.message || "Update berhasil."}${shortPull}`);
 }
 
 companySettingsForm.addEventListener("submit", async (event) => {
@@ -188,6 +240,32 @@ if (fieldStaffList) {
     });
 }
 
+if (checkUpdateBtn) {
+    checkUpdateBtn.addEventListener("click", async () => {
+        try {
+            await checkSystemUpdate();
+        } catch (error) {
+            setUpdateMessage(error.message, true);
+        }
+    });
+}
+
+if (applyUpdateBtn) {
+    applyUpdateBtn.addEventListener("click", async () => {
+        const yes = window.confirm("Jalankan update aplikasi dari GitHub sekarang?");
+        if (!yes) {
+            return;
+        }
+
+        try {
+            await applySystemUpdate();
+            await checkSystemUpdate();
+        } catch (error) {
+            setUpdateMessage(error.message, true);
+        }
+    });
+}
+
 (async function initFieldStaffPanel() {
     if (!fieldStaffList) {
         return;
@@ -197,5 +275,17 @@ if (fieldStaffList) {
         await loadFieldStaff();
     } catch (error) {
         setFieldStaffMessage(error.message, true);
+    }
+})();
+
+(async function initUpdatePanel() {
+    if (!updateMessage) {
+        return;
+    }
+
+    try {
+        await checkSystemUpdate();
+    } catch (error) {
+        setUpdateMessage(error.message, true);
     }
 })();

@@ -23,6 +23,7 @@ Backend menggunakan Flask dan database SQLite (tanpa Docker).
 - Pengaturan data perusahaan
 - Pengaturan tampilan landing page
 - Panel manajemen ID teknisi/operator lapangan
+- Panel update aplikasi dari GitHub (cek update + update sekarang)
 - Jalur garis hubung antar titik infrastruktur (server, tiang, ODP, closure)
 - Export KMZ berisi titik dan jalur koneksi
 - Tampilan mobile responsif dengan hamburger menu dan bottom navigation
@@ -74,6 +75,25 @@ Yang dilakukan script:
 3. Buat virtual environment dan install requirements.
 4. Buat service `systemd` bernama `kmzinfra`.
 5. (Default) konfigurasi reverse proxy Nginx ke aplikasi.
+
+### Catatan fitur Update Dari GitHub
+
+Panel update tersedia di menu Pengaturan.
+
+Default: tombol `Update Sekarang` dinonaktifkan di sisi server untuk keamanan.
+
+Aktifkan dengan environment variable:
+
+```bash
+KMZINFRA_ENABLE_WEB_UPDATE=1
+```
+
+Opsional (remote dan branch update):
+
+```bash
+KMZINFRA_UPDATE_REMOTE=origin
+KMZINFRA_UPDATE_BRANCH=main
+```
 
 ## Fitur Jalur KMZ
 
