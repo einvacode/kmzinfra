@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backup Restore - {{ settings.company_name }}</title>
+    <title>Akun Admin - {{ settings.company_name }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -20,9 +20,9 @@
         </div>
         <nav class="menu-bar" id="mainMenu">
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('backup_page') }}" class="active">Backup Restore</a>
+            <a href="{{ url_for('backup_page') }}">Backup Restore</a>
             <a href="{{ url_for('settings_page') }}">Pengaturan</a>
-            <a href="{{ url_for('admin_account_page') }}">Akun Admin</a>
+            <a href="{{ url_for('admin_account_page') }}" class="active">Akun Admin</a>
             <a href="{{ url_for('landing_page') }}" target="_blank" rel="noreferrer">Lihat Landing</a>
             <form action="{{ url_for('logout') }}" method="post" class="inline-form">
                 <button type="submit" class="mini-link danger">Logout</button>
@@ -32,33 +32,37 @@
 
     <nav class="bottom-nav" aria-label="Navigasi Mobile">
         <a href="{{ url_for('dashboard') }}"><span class="nav-icon">DB</span><span class="nav-label">Dashboard</span></a>
-        <a href="{{ url_for('backup_page') }}" class="active"><span class="nav-icon">BK</span><span class="nav-label">Backup</span></a>
-        <a href="{{ url_for('settings_page') }}"><span class="nav-icon">ST</span><span class="nav-label">Pengaturan</span></a>
+        <a href="{{ url_for('backup_page') }}"><span class="nav-icon">BK</span><span class="nav-label">Backup</span></a>
+        <a href="{{ url_for('admin_account_page') }}" class="active"><span class="nav-icon">AD</span><span class="nav-label">Akun</span></a>
     </nav>
 
     <main class="settings-layout">
         <section class="panel settings-panel">
-            <h1>Backup & Restore Database</h1>
-            <p class="helper">Gunakan menu ini untuk membuat snapshot database, download file backup, dan restore saat dibutuhkan.</p>
+            <h1>Manajemen Akun Login Admin</h1>
+            <p class="helper">Pilih akun yang tersedia, lalu ubah username dan password admin dari halaman ini.</p>
 
-            <div class="actions">
-                <button type="button" id="createBackupBtn" class="btn ghost">Buat Backup Sekarang</button>
-                <button type="button" id="refreshBackupBtn" class="btn ghost">Refresh Daftar Backup</button>
-            </div>
+            <form id="adminAccountForm">
+                <label for="selected_user_id">Pilih Akun</label>
+                <select id="selected_user_id" name="selected_user_id" required></select>
 
-            <label for="backupSelect">Pilih File Backup</label>
-            <select id="backupSelect"></select>
+                <label for="admin_username">Username Admin</label>
+                <input id="admin_username" name="admin_username" required placeholder="Contoh: admin_kmz">
 
-            <div class="actions">
-                <button type="button" id="downloadBackupBtn" class="btn ghost">Download Backup</button>
-                <button type="button" id="restoreBackupBtn" class="btn primary">Restore Backup</button>
-            </div>
+                <label for="admin_new_password">Password Baru (opsional)</label>
+                <input id="admin_new_password" name="admin_new_password" type="password" placeholder="Kosongkan jika tidak ingin ganti password">
 
-            <p id="backupInfo" class="helper">Belum ada data backup.</p>
+                <div class="actions">
+                    <button type="submit" class="btn primary">Simpan Perubahan Akun</button>
+                    <button type="button" id="refreshUsersBtn" class="btn ghost">Refresh Akun</button>
+                </div>
+                <p id="adminAccountMessage" class="helper"></p>
+            </form>
+
+            <div id="userList" class="list-container"></div>
         </section>
     </main>
 
     <script src="{{ url_for('static', filename='nav.js') }}"></script>
-    <script src="{{ url_for('static', filename='backup.js') }}"></script>
+    <script src="{{ url_for('static', filename='settings.js') }}"></script>
 </body>
 </html>

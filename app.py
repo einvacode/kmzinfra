@@ -575,6 +575,13 @@ def settings_page():
     return render_template("settings.html", settings=settings, username=session.get("username", "admin"))
 
 
+@app.route("/admin-account")
+@login_required
+def admin_account_page():
+    settings = get_site_settings()
+    return render_template("admin_account.html", settings=settings, username=session.get("username", "admin"))
+
+
 @app.route("/backup")
 @login_required
 def backup_page():
