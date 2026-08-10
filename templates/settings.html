@@ -98,6 +98,30 @@
         </section>
 
         <section class="panel settings-panel">
+            <h2>Manajemen Akun Login Admin</h2>
+            <p class="helper">Lihat akun login yang tersedia, lalu ubah username admin atau password langsung dari panel ini.</p>
+
+            <form id="adminAccountForm">
+                <label for="selected_user_id">Pilih Akun</label>
+                <select id="selected_user_id" name="selected_user_id" required></select>
+
+                <label for="admin_username">Username Admin</label>
+                <input id="admin_username" name="admin_username" required placeholder="Contoh: admin_kmz">
+
+                <label for="admin_new_password">Password Baru (opsional)</label>
+                <input id="admin_new_password" name="admin_new_password" type="password" placeholder="Kosongkan jika tidak ingin ganti password">
+
+                <div class="actions">
+                    <button type="submit" class="btn primary">Simpan Perubahan Akun</button>
+                    <button type="button" id="refreshUsersBtn" class="btn ghost">Refresh Akun</button>
+                </div>
+                <p id="adminAccountMessage" class="helper"></p>
+            </form>
+
+            <div id="userList" class="list-container"></div>
+        </section>
+
+        <section class="panel settings-panel">
             <h2>Panel ID Teknisi/Operator Lapangan</h2>
             <form id="fieldStaffForm">
                 <div class="grid-2">

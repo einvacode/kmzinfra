@@ -7,6 +7,15 @@ const refreshFieldStaffBtn = document.getElementById("refreshFieldStaffBtn");
 const checkUpdateBtn = document.getElementById("checkUpdateBtn");
 const applyUpdateBtn = document.getElementById("applyUpdateBtn");
 const updateMessage = document.getElementById("updateMessage");
+const adminAccountForm = document.getElementById("adminAccountForm");
+const selectedUserId = document.getElementById("selected_user_id");
+const adminUsername = document.getElementById("admin_username");
+const adminNewPassword = document.getElementById("admin_new_password");
+const refreshUsersBtn = document.getElementById("refreshUsersBtn");
+const adminAccountMessage = document.getElementById("adminAccountMessage");
+const userList = document.getElementById("userList");
+
+let cachedUsers = [];
 
 function escapeHtml(text) {
     return String(text)
@@ -36,6 +45,113 @@ function setUpdateMessage(message, isError = false) {
     }
     updateMessage.textContent = message;
     updateMessage.classList.toggle("error-text", isError);
+}
+
+function setAdminAccountMessage(message, isError = false) {
+    if (!adminAccountMessage) {
+        return;
+    }
+    adminAccountMessage.textContent = message;
+    adminAccountMessage.classList.toggle("error-text", isError);
+}
+
+function renderUserOptions() {
+    if (!selectedUserId) {
+        return;
+    }
+
+    if (cachedUsers.length === 0) {
+        selectedUserId.innerHTML = '<option value="">Belum ada akun</option>';
+        adminUsername.value = "";
+        return;
+    }
+
+    selectedUserId.innerHTML = cachedUsers
+        .map((user) => `<option value="${user.id}">${escapeHtml(user.username)} (ID ${user.id})</option>`)
+        .join("");
+
+    const selected = cachedUsers[0];
+    selectedUserId.value = String(selected.id);
+    adminUsername.value = selected.username;
+}
+
+function renderUserList() {
+    if (!userList) {
+        return;
+    }
+
+    if (cachedUsers.length === 0) {
+        userList.innerHTML = '<p class="muted">Belum ada akun login.</p>';
+        return;
+    }
+
+    userList.innerHTML = cachedUsers
+        .map((user) => {
+            return `
+                <article class="list-item">
+                    <h3>${escapeHtml(user.username)}</h3>
+                    <p class="meta">User ID: ${user.id} | Dibuat: ${escapeHtml(user.created_at || "-")}</p>
+                    <div class="row-actions">
+                        <button data-action="pick-user" data-id="${user.id}">Pilih</button>
+                    </div>
+                </article>
+            `;
+        })
+        .join("");
+}
+
+function applySelectedUserToForm(userId) {
+    const selected = cachedUsers.find((user) => user.id === Number(userId));
+    if (!selected) {
+        return;
+    }
+
+    selectedUserId.value = String(selected.id);
+    adminUsername.value = selected.username;
+}
+
+async function loadUsers() {
+    const response = await fetch("/api/users");
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal mengambil data akun login.");
+    }
+
+    cachedUsers = result.data;
+    renderUserOptions();
+    renderUserList();
+}
+
+async function updateUserAccount() {
+    const id = Number(selectedUserId.value);
+    if (!id) {
+        throw new Error("Pilih akun yang ingin diubah.");
+    }
+
+    const username = adminUsername.value.trim();
+    const newPassword = adminNewPassword.value;
+
+    if (!username) {
+        throw new Error("Username admin wajib diisi.");
+    }
+
+    const response = await fetch(`/api/users/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            username,
+            new_password: newPassword
+        })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal memperbarui akun.");
+    }
+
+    adminNewPassword.value = "";
+    setAdminAccountMessage("Akun admin berhasil diperbarui.");
+    await loadUsers();
+    applySelectedUserToForm(id);
 }
 
 function renderFieldStaffList(items) {
@@ -266,6 +382,55 @@ if (applyUpdateBtn) {
     });
 }
 
+if (selectedUserId) {
+    selectedUserId.addEventListener("change", () => {
+        applySelectedUserToForm(selectedUserId.value);
+    });
+}
+
+if (adminAccountForm) {
+    adminAccountForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            await updateUserAccount();
+        } catch (error) {
+            setAdminAccountMessage(error.message, true);
+        }
+    });
+}
+
+if (refreshUsersBtn) {
+    refreshUsersBtn.addEventListener("click", async () => {
+        try {
+            await loadUsers();
+            setAdminAccountMessage("Daftar akun login diperbarui.");
+        } catch (error) {
+            setAdminAccountMessage(error.message, true);
+        }
+    });
+}
+
+if (userList) {
+    userList.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+
+        if (target.dataset.action !== "pick-user") {
+            return;
+        }
+
+        const id = Number(target.dataset.id);
+        if (!id) {
+            return;
+        }
+
+        applySelectedUserToForm(id);
+        setAdminAccountMessage("Akun dipilih. Silakan ubah username/password lalu simpan.");
+    });
+}
+
 (async function initFieldStaffPanel() {
     if (!fieldStaffList) {
         return;
@@ -287,5 +452,17 @@ if (applyUpdateBtn) {
         await checkSystemUpdate();
     } catch (error) {
         setUpdateMessage(error.message, true);
+    }
+})();
+
+(async function initUserPanel() {
+    if (!userList || !selectedUserId) {
+        return;
+    }
+
+    try {
+        await loadUsers();
+    } catch (error) {
+        setAdminAccountMessage(error.message, true);
     }
 })();

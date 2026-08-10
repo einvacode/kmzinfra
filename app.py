@@ -147,8 +147,8 @@ def init_db() -> None:
         ),
     )
 
-    admin_exists = db.execute("SELECT id FROM users WHERE username = ?", (DEFAULT_ADMIN_USERNAME,)).fetchone()
-    if not admin_exists:
+    has_any_user = db.execute("SELECT id FROM users LIMIT 1").fetchone()
+    if not has_any_user:
         db.execute(
             """
             INSERT INTO users (username, password_hash)
@@ -1121,6 +1121,75 @@ def export_kmz():
 def get_company_settings():
     settings = get_site_settings()
     return jsonify({"ok": True, "data": settings})
+
+
+@app.route("/api/users", methods=["GET"])
+@login_required
+def list_users():
+    init_db()
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT id, username, created_at
+        FROM users
+        ORDER BY id ASC
+        """
+    ).fetchall()
+    return jsonify({"ok": True, "data": [dict(r) for r in rows]})
+
+
+@app.route("/api/users/<int:user_id>", methods=["PUT"])
+@login_required
+def update_user_credentials(user_id: int):
+    init_db()
+    payload = request.get_json(silent=True) or {}
+
+    username = str(payload.get("username", "")).strip()
+    new_password = str(payload.get("new_password", ""))
+
+    if not username:
+        return _error("Username wajib diisi.", 422)
+
+    if new_password and len(new_password) < 6:
+        return _error("Password baru minimal 6 karakter.", 422)
+
+    db = get_db()
+    user = db.execute("SELECT id, username FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        return _error("Akun tidak ditemukan.", 404)
+
+    duplicate = db.execute(
+        "SELECT id FROM users WHERE username = ? AND id != ?",
+        (username, user_id),
+    ).fetchone()
+    if duplicate:
+        return _error("Username sudah dipakai akun lain.", 409)
+
+    if new_password:
+        db.execute(
+            """
+            UPDATE users
+            SET username = ?, password_hash = ?
+            WHERE id = ?
+            """,
+            (username, generate_password_hash(new_password), user_id),
+        )
+    else:
+        db.execute(
+            """
+            UPDATE users
+            SET username = ?
+            WHERE id = ?
+            """,
+            (username, user_id),
+        )
+
+    db.commit()
+
+    if session.get("user_id") == user_id:
+        session["username"] = username
+
+    return jsonify({"ok": True, "message": "Akun berhasil diperbarui."})
 
 
 @app.route("/api/system/update-status", methods=["GET"])
