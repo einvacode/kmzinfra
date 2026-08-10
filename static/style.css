@@ -661,7 +661,7 @@ textarea:focus {
         right: 0;
         bottom: 0;
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
         padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
         background: rgba(255, 255, 255, 0.94);
