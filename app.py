@@ -82,6 +82,7 @@ def init_db() -> None:
             staff_id TEXT NOT NULL UNIQUE,
             full_name TEXT NOT NULL,
             role TEXT NOT NULL,
+            password_hash TEXT NOT NULL DEFAULT '',
             phone TEXT DEFAULT '',
             notes TEXT DEFAULT '',
             is_active INTEGER NOT NULL DEFAULT 1,
@@ -89,6 +90,11 @@ def init_db() -> None:
         )
         """
     )
+
+    staff_columns = db.execute("PRAGMA table_info(field_staff)").fetchall()
+    staff_column_names = {col[1] for col in staff_columns}
+    if "password_hash" not in staff_column_names:
+        db.execute("ALTER TABLE field_staff ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''")
 
     db.execute(
         """
@@ -305,6 +311,26 @@ def login_required(fn):
             if request.path.startswith("/api/"):
                 return _error("Sesi login tidak valid. Silakan login ulang.", 401)
             return redirect(url_for("login", next=request.path))
+
+        auth_source = session.get("auth_source", "users")
+
+        if auth_source == "field_staff":
+            db = get_db()
+            staff_row = db.execute(
+                "SELECT id, is_active FROM field_staff WHERE id = ?",
+                (session.get("user_id"),),
+            ).fetchone()
+            if not staff_row:
+                session.clear()
+                if request.path.startswith("/api/"):
+                    return _error("Akun teknisi/operator tidak ditemukan. Silakan login ulang.", 401)
+                return redirect(url_for("login", next=request.path))
+            if int(staff_row["is_active"]) != 1:
+                session.clear()
+                if request.path.startswith("/api/"):
+                    return _error("Akun teknisi/operator nonaktif.", 403)
+                return redirect(url_for("login", next=request.path))
+            return fn(*args, **kwargs)
 
         db = get_db()
         user_row = db.execute(
@@ -565,19 +591,21 @@ def landing_page():
 def login():
     init_db()
     if "user_id" in session:
-        db = get_db()
-        existing_user = db.execute(
-            "SELECT id, must_change_password FROM users WHERE id = ?",
-            (session.get("user_id"),),
-        ).fetchone()
-        if existing_user and existing_user["must_change_password"]:
-            session["force_password_change"] = True
-            return redirect(url_for("admin_account_page", forced="1"))
+        if session.get("auth_source", "users") == "users":
+            db = get_db()
+            existing_user = db.execute(
+                "SELECT id, must_change_password FROM users WHERE id = ?",
+                (session.get("user_id"),),
+            ).fetchone()
+            if existing_user and existing_user["must_change_password"]:
+                session["force_password_change"] = True
+                return redirect(url_for("admin_account_page", forced="1"))
         return redirect(url_for("dashboard"))
 
     error_message = ""
     if request.method == "POST":
         username = str(request.form.get("username", "")).strip()
+        login_id = username.upper()
         password = str(request.form.get("password", ""))
         next_url = str(request.form.get("next", "")).strip()
 
@@ -591,9 +619,31 @@ def login():
             session.clear()
             session["user_id"] = user["id"]
             session["username"] = user["username"]
+            session["auth_source"] = "users"
             session["force_password_change"] = bool(user["must_change_password"])
             if session["force_password_change"]:
                 return redirect(url_for("admin_account_page", forced="1"))
+            if next_url.startswith("/") and not next_url.startswith("//"):
+                return redirect(next_url)
+            return redirect(url_for("dashboard"))
+
+        staff = db.execute(
+            """
+            SELECT id, staff_id, full_name, role, password_hash, is_active
+            FROM field_staff
+            WHERE staff_id = ?
+            """,
+            (login_id,),
+        ).fetchone()
+
+        if staff and int(staff["is_active"]) == 1 and staff["password_hash"] and check_password_hash(staff["password_hash"], password):
+            session.clear()
+            session["user_id"] = staff["id"]
+            session["username"] = staff["staff_id"]
+            session["display_name"] = staff["full_name"]
+            session["staff_role"] = staff["role"]
+            session["auth_source"] = "field_staff"
+            session["force_password_change"] = False
             if next_url.startswith("/") and not next_url.startswith("//"):
                 return redirect(next_url)
             return redirect(url_for("dashboard"))
@@ -616,14 +666,16 @@ def logout():
 @login_required
 def dashboard():
     settings = get_site_settings()
-    return render_template("dashboard.html", settings=settings, username=session.get("username", "admin"))
+    username = session.get("display_name") or session.get("username", "admin")
+    return render_template("dashboard.html", settings=settings, username=username)
 
 
 @app.route("/settings")
 @login_required
 def settings_page():
     settings = get_site_settings()
-    return render_template("settings.html", settings=settings, username=session.get("username", "admin"))
+    username = session.get("display_name") or session.get("username", "admin")
+    return render_template("settings.html", settings=settings, username=username)
 
 
 @app.route("/admin-account")
@@ -631,10 +683,11 @@ def settings_page():
 def admin_account_page():
     settings = get_site_settings()
     forced_password_change = request.args.get("forced") == "1" or bool(session.get("force_password_change"))
+    username = session.get("display_name") or session.get("username", "admin")
     return render_template(
         "admin_account.html",
         settings=settings,
-        username=session.get("username", "admin"),
+        username=username,
         forced_password_change=forced_password_change,
     )
 
@@ -643,7 +696,8 @@ def admin_account_page():
 @login_required
 def backup_page():
     settings = get_site_settings()
-    return render_template("backup.html", settings=settings, username=session.get("username", "admin"))
+    username = session.get("display_name") or session.get("username", "admin")
+    return render_template("backup.html", settings=settings, username=username)
 
 
 @app.route("/api/infra", methods=["GET"])
@@ -1374,12 +1428,20 @@ def list_field_staff():
     db = get_db()
     rows = db.execute(
         """
-        SELECT id, staff_id, full_name, role, phone, notes, is_active, created_at
+        SELECT id, staff_id, full_name, role, phone, notes, is_active, password_hash, created_at
         FROM field_staff
         ORDER BY id DESC
         """
     ).fetchall()
-    return jsonify({"ok": True, "data": [dict(r) for r in rows]})
+
+    data = []
+    for row in rows:
+        item = dict(row)
+        item["has_password"] = bool(item.get("password_hash"))
+        item.pop("password_hash", None)
+        data.append(item)
+
+    return jsonify({"ok": True, "data": data})
 
 
 @app.route("/api/field-staff", methods=["POST"])
@@ -1391,6 +1453,7 @@ def create_field_staff():
     staff_id = str(payload.get("staff_id", "")).strip().upper()
     full_name = str(payload.get("full_name", "")).strip()
     role = str(payload.get("role", "")).strip().upper()
+    password = str(payload.get("password", ""))
     phone = str(payload.get("phone", "")).strip()
     notes = str(payload.get("notes", "")).strip()
     is_active = 1 if bool(payload.get("is_active", True)) else 0
@@ -1401,15 +1464,17 @@ def create_field_staff():
         return _error("Nama teknisi/operator wajib diisi.", 422)
     if role not in {"TEKNISI", "OPERATOR"}:
         return _error("Role hanya boleh TEKNISI atau OPERATOR.", 422)
+    if len(password) < 6:
+        return _error("Password login teknisi/operator minimal 6 karakter.", 422)
 
     db = get_db()
     try:
         cursor = db.execute(
             """
-            INSERT INTO field_staff (staff_id, full_name, role, phone, notes, is_active)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO field_staff (staff_id, full_name, role, password_hash, phone, notes, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (staff_id, full_name, role, phone, notes, is_active),
+            (staff_id, full_name, role, generate_password_hash(password), phone, notes, is_active),
         )
         db.commit()
     except sqlite3.IntegrityError:
@@ -1430,6 +1495,29 @@ def delete_field_staff(item_id: int):
         return _error("Data teknisi/operator tidak ditemukan.", 404)
 
     return jsonify({"ok": True, "message": "Data teknisi/operator berhasil dihapus."})
+
+
+@app.route("/api/field-staff/<int:item_id>/password", methods=["PUT"])
+@login_required
+def update_field_staff_password(item_id: int):
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    password = str(payload.get("password", ""))
+
+    if len(password) < 6:
+        return _error("Password baru minimal 6 karakter.", 422)
+
+    db = get_db()
+    row = db.execute("SELECT id FROM field_staff WHERE id = ?", (item_id,)).fetchone()
+    if not row:
+        return _error("Data teknisi/operator tidak ditemukan.", 404)
+
+    db.execute(
+        "UPDATE field_staff SET password_hash = ? WHERE id = ?",
+        (generate_password_hash(password), item_id),
+    )
+    db.commit()
+    return jsonify({"ok": True, "message": "Password login teknisi/operator berhasil diperbarui."})
 
 
 @app.route("/api/company-settings", methods=["PUT"])

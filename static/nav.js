@@ -2,6 +2,51 @@ const menuToggleButtons = document.querySelectorAll(".menu-toggle");
 const bottomNav = document.querySelector(".bottom-nav");
 let lastScrollY = window.scrollY;
 
+function ensureAdminTopNav() {
+    document.querySelectorAll(".menu-bar").forEach((menu) => {
+        const adminLink = menu.querySelector('a[href="/admin-account"]');
+        if (adminLink) {
+            return;
+        }
+
+        const landingLink = menu.querySelector('a[target="_blank"]');
+        const link = document.createElement("a");
+        link.href = "/admin-account";
+        link.textContent = "Admin";
+        if (window.location.pathname === "/admin-account") {
+            link.classList.add("active");
+        }
+
+        if (landingLink) {
+            menu.insertBefore(link, landingLink);
+        } else {
+            menu.appendChild(link);
+        }
+    });
+}
+
+function ensureAdminBottomNav() {
+    if (!bottomNav) {
+        return;
+    }
+
+    const adminLink = bottomNav.querySelector('a[href="/admin-account"]');
+    if (adminLink) {
+        return;
+    }
+
+    const link = document.createElement("a");
+    link.href = "/admin-account";
+    link.innerHTML = '<span class="nav-icon">AD</span><span class="nav-label">Admin</span>';
+    if (window.location.pathname === "/admin-account") {
+        link.classList.add("active");
+    }
+    bottomNav.appendChild(link);
+}
+
+ensureAdminTopNav();
+ensureAdminBottomNav();
+
 menuToggleButtons.forEach((button) => {
     button.addEventListener("click", () => {
         const targetId = button.getAttribute("data-target");
