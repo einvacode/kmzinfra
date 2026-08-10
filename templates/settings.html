@@ -22,7 +22,7 @@
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('backup_page') }}">Backup Restore</a>
             <a href="{{ url_for('settings_page') }}" class="active">Pengaturan</a>
-            <a href="{{ url_for('admin_account_page') }}">Akun Admin</a>
+            <a href="{{ url_for('admin_account_page') }}">Admin</a>
             <a href="{{ url_for('landing_page') }}" target="_blank" rel="noreferrer">Lihat Landing</a>
             <form action="{{ url_for('logout') }}" method="post" class="inline-form">
                 <button type="submit" class="mini-link danger">Logout</button>
@@ -40,6 +40,11 @@
     <main class="settings-layout">
         <section class="panel settings-panel">
             <h1>Pengaturan Data Perusahaan</h1>
+            <div class="actions">
+                <a href="{{ url_for('admin_account_page') }}" class="btn primary link-btn">Buka Menu Admin (Ubah Login)</a>
+            </div>
+            <p class="helper">Gunakan menu Admin untuk ganti username/password akun login.</p>
+
             <form id="companySettingsForm">
                 <label for="company_name">Nama Perusahaan</label>
                 <input id="company_name" name="company_name" value="{{ settings.company_name }}" required>
