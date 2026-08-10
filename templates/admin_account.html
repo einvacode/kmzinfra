@@ -42,6 +42,10 @@
             <h1>Manajemen Akun Login Admin</h1>
             <p class="helper">Pilih akun yang tersedia, lalu ubah username dan password admin dari halaman ini.</p>
 
+            {% if forced_password_change %}
+                <p class="error-box">Keamanan: Anda masih menggunakan password default admin. Silakan ganti password sekarang sebelum mengakses menu lain.</p>
+            {% endif %}
+
             <form id="adminAccountForm">
                 <label for="selected_user_id">Pilih Akun</label>
                 <select id="selected_user_id" name="selected_user_id" required></select>

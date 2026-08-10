@@ -96,10 +96,16 @@ def init_db() -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
+            must_change_password INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+
+    user_columns = db.execute("PRAGMA table_info(users)").fetchall()
+    user_column_names = {col[1] for col in user_columns}
+    if "must_change_password" not in user_column_names:
+        db.execute("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0")
 
     db.execute(
         """
@@ -151,11 +157,17 @@ def init_db() -> None:
     if not has_any_user:
         db.execute(
             """
-            INSERT INTO users (username, password_hash)
-            VALUES (?, ?)
+            INSERT INTO users (username, password_hash, must_change_password)
+            VALUES (?, ?, 1)
             """,
             (DEFAULT_ADMIN_USERNAME, generate_password_hash(DEFAULT_ADMIN_PASSWORD)),
         )
+
+    # Paksa ganti password untuk akun yang masih memakai password default.
+    default_rows = db.execute("SELECT id, password_hash FROM users").fetchall()
+    for row in default_rows:
+        if check_password_hash(row["password_hash"], DEFAULT_ADMIN_PASSWORD):
+            db.execute("UPDATE users SET must_change_password = 1 WHERE id = ?", (row["id"],))
 
     db.execute(
         """
@@ -293,6 +305,21 @@ def login_required(fn):
             if request.path.startswith("/api/"):
                 return _error("Sesi login tidak valid. Silakan login ulang.", 401)
             return redirect(url_for("login", next=request.path))
+
+        # Jika user wajib ganti password, batasi akses hanya ke halaman admin akun,
+        # endpoint update user, dan logout sampai password diganti.
+        if session.get("force_password_change"):
+            allowed_exact_paths = {"/admin-account", "/logout"}
+            allowed_api_prefixes = {"/api/users"}
+            is_allowed_path = request.path in allowed_exact_paths
+            is_allowed_api = any(request.path.startswith(prefix) for prefix in allowed_api_prefixes)
+
+            if request.path.startswith("/api/") and not is_allowed_api:
+                return _error("Anda wajib mengganti password default admin sebelum mengakses menu lain.", 403)
+
+            if not request.path.startswith("/api/") and not is_allowed_path:
+                return redirect(url_for("admin_account_page", forced="1"))
+
         return fn(*args, **kwargs)
 
     return wrapper
@@ -535,7 +562,7 @@ def login():
 
         db = get_db()
         user = db.execute(
-            "SELECT id, username, password_hash FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, must_change_password FROM users WHERE username = ?",
             (username,),
         ).fetchone()
 
@@ -543,6 +570,9 @@ def login():
             session.clear()
             session["user_id"] = user["id"]
             session["username"] = user["username"]
+            session["force_password_change"] = bool(user["must_change_password"])
+            if session["force_password_change"]:
+                return redirect(url_for("admin_account_page", forced="1"))
             if next_url.startswith("/") and not next_url.startswith("//"):
                 return redirect(next_url)
             return redirect(url_for("dashboard"))
@@ -579,7 +609,13 @@ def settings_page():
 @login_required
 def admin_account_page():
     settings = get_site_settings()
-    return render_template("admin_account.html", settings=settings, username=session.get("username", "admin"))
+    forced_password_change = request.args.get("forced") == "1" or bool(session.get("force_password_change"))
+    return render_template(
+        "admin_account.html",
+        settings=settings,
+        username=session.get("username", "admin"),
+        forced_password_change=forced_password_change,
+    )
 
 
 @app.route("/backup")
@@ -1222,7 +1258,7 @@ def list_users():
     db = get_db()
     rows = db.execute(
         """
-        SELECT id, username, created_at
+        SELECT id, username, must_change_password, created_at
         FROM users
         ORDER BY id ASC
         """
@@ -1261,7 +1297,7 @@ def update_user_credentials(user_id: int):
         db.execute(
             """
             UPDATE users
-            SET username = ?, password_hash = ?
+            SET username = ?, password_hash = ?, must_change_password = 0
             WHERE id = ?
             """,
             (username, generate_password_hash(new_password), user_id),
@@ -1280,6 +1316,8 @@ def update_user_credentials(user_id: int):
 
     if session.get("user_id") == user_id:
         session["username"] = username
+        if new_password:
+            session["force_password_change"] = False
 
     return jsonify({"ok": True, "message": "Akun berhasil diperbarui."})
 
