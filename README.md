@@ -22,6 +22,7 @@ Backend menggunakan Flask dan database SQLite (tanpa Docker).
 - Filter berdasarkan jenis infrastruktur
 - Pengaturan data perusahaan
 - Pengaturan tampilan landing page
+- Panel manajemen ID teknisi/operator lapangan
 - Jalur garis hubung antar titik infrastruktur (server, tiang, ODP, closure)
 - Export KMZ berisi titik dan jalur koneksi
 - Tampilan mobile responsif dengan hamburger menu dan bottom navigation
@@ -48,6 +49,31 @@ Halaman aplikasi:
 - Dashboard (setelah login): `/dashboard`
 - Backup & Restore (setelah login): `/backup`
 - Pengaturan perusahaan & landing page (setelah login): `/settings`
+
+## Install Cepat Debian/Ubuntu
+
+Tersedia script installer otomatis: `install.sh`.
+
+Contoh penggunaan:
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+Contoh opsi:
+
+```bash
+./install.sh --app-dir /opt/kmzinfra --port 5000 --domain mydomain.com
+./install.sh --no-nginx
+```
+
+Yang dilakukan script:
+1. Install dependency sistem (`python3`, `venv`, `pip`, `nginx`, dll).
+2. Deploy source code ke folder target.
+3. Buat virtual environment dan install requirements.
+4. Buat service `systemd` bernama `kmzinfra`.
+5. (Default) konfigurasi reverse proxy Nginx ke aplikasi.
 
 ## Fitur Jalur KMZ
 
@@ -99,7 +125,8 @@ Catatan keamanan data:
 5. Izinkan akses lokasi saat browser meminta permission.
 
 Catatan:
-- Beberapa browser mobile membatasi geolocation pada koneksi non-HTTPS.
+- Browser mobile (Chrome/Safari) umumnya menolak geolocation jika aplikasi dibuka lewat HTTP pada IP LAN (contoh: http://192.168.x.x:5000).
+- Geolocation biasanya hanya diizinkan pada HTTPS atau localhost.
 - Untuk penggunaan produksi/public, jalankan aplikasi di domain HTTPS (misalnya melalui Nginx + SSL di Proxmox).
 
 Troubleshooting:

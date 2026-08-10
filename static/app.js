@@ -46,6 +46,26 @@ let infraTypes = [];
 let infraLinks = [];
 let isCompactMode = false;
 
+function isLocalhostHost(hostname) {
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function isGpsContextAllowed() {
+    if (window.isSecureContext) {
+        return true;
+    }
+    return isLocalhostHost(window.location.hostname);
+}
+
+function getGpsBlockedReason() {
+    const isHttp = window.location.protocol === "http:";
+    const isLocal = isLocalhostHost(window.location.hostname);
+    if (isHttp && !isLocal) {
+        return "Akses GPS di browser mobile umumnya ditolak jika aplikasi dibuka via HTTP dari IP jaringan lokal. Gunakan HTTPS atau akses dari localhost.";
+    }
+    return "Akses GPS diblokir oleh browser atau pengaturan privasi perangkat.";
+}
+
 map.on("click", (event) => {
     const { lat, lng } = event.latlng;
     fieldLat.value = lat.toFixed(6);
@@ -304,6 +324,9 @@ function geolocationErrorMessage(error) {
     }
 
     if (error.code === 1) {
+        if (!isGpsContextAllowed()) {
+            return getGpsBlockedReason();
+        }
         return "Izin lokasi ditolak. Aktifkan izin lokasi pada browser handphone Anda.";
     }
     if (error.code === 2) {
@@ -319,6 +342,11 @@ function geolocationErrorMessage(error) {
 function requestGpsLocation({ focusMap }) {
     if (!("geolocation" in navigator)) {
         window.alert("Browser ini tidak mendukung geolocation.");
+        return;
+    }
+
+    if (!isGpsContextAllowed()) {
+        window.alert(getGpsBlockedReason());
         return;
     }
 
@@ -842,6 +870,13 @@ gpsCenterBtn.addEventListener("click", () => {
     try {
         const compactModeSaved = window.localStorage.getItem("kmzinfra-compact-mode") === "1";
         applyCompactMode(compactModeSaved);
+
+        if (!isGpsContextAllowed()) {
+            window.setTimeout(() => {
+                window.alert("Peringatan GPS: aplikasi Anda sedang dibuka pada koneksi yang tidak aman untuk geolocation mobile (HTTP non-localhost). Silakan gunakan HTTPS agar tombol GPS bisa dipakai.");
+            }, 350);
+        }
+
         await loadInfraTypes();
         await loadAssetTypes();
         resetForm();

@@ -72,6 +72,21 @@ def init_db() -> None:
     db = get_db()
     db.execute(
         """
+        CREATE TABLE IF NOT EXISTS field_staff (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            staff_id TEXT NOT NULL UNIQUE,
+            full_name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            phone TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    db.execute(
+        """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
@@ -996,6 +1011,71 @@ def export_kmz():
 def get_company_settings():
     settings = get_site_settings()
     return jsonify({"ok": True, "data": settings})
+
+
+@app.route("/api/field-staff", methods=["GET"])
+@login_required
+def list_field_staff():
+    init_db()
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT id, staff_id, full_name, role, phone, notes, is_active, created_at
+        FROM field_staff
+        ORDER BY id DESC
+        """
+    ).fetchall()
+    return jsonify({"ok": True, "data": [dict(r) for r in rows]})
+
+
+@app.route("/api/field-staff", methods=["POST"])
+@login_required
+def create_field_staff():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+
+    staff_id = str(payload.get("staff_id", "")).strip().upper()
+    full_name = str(payload.get("full_name", "")).strip()
+    role = str(payload.get("role", "")).strip().upper()
+    phone = str(payload.get("phone", "")).strip()
+    notes = str(payload.get("notes", "")).strip()
+    is_active = 1 if bool(payload.get("is_active", True)) else 0
+
+    if not staff_id:
+        return _error("ID teknisi/operator wajib diisi.", 422)
+    if not full_name:
+        return _error("Nama teknisi/operator wajib diisi.", 422)
+    if role not in {"TEKNISI", "OPERATOR"}:
+        return _error("Role hanya boleh TEKNISI atau OPERATOR.", 422)
+
+    db = get_db()
+    try:
+        cursor = db.execute(
+            """
+            INSERT INTO field_staff (staff_id, full_name, role, phone, notes, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (staff_id, full_name, role, phone, notes, is_active),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        return _error("ID teknisi/operator sudah terdaftar.", 409)
+
+    return jsonify({"ok": True, "id": cursor.lastrowid}), 201
+
+
+@app.route("/api/field-staff/<int:item_id>", methods=["DELETE"])
+@login_required
+def delete_field_staff(item_id: int):
+    init_db()
+    db = get_db()
+    cursor = db.execute("DELETE FROM field_staff WHERE id = ?", (item_id,))
+    db.commit()
+
+    if cursor.rowcount == 0:
+        return _error("Data teknisi/operator tidak ditemukan.", 404)
+
+    return jsonify({"ok": True, "message": "Data teknisi/operator berhasil dihapus."})
 
 
 @app.route("/api/company-settings", methods=["PUT"])

@@ -85,6 +85,53 @@
                 <p id="settingsMessage" class="helper"></p>
             </form>
         </section>
+
+        <section class="panel settings-panel">
+            <h2>Panel ID Teknisi/Operator Lapangan</h2>
+            <form id="fieldStaffForm">
+                <div class="grid-2">
+                    <div>
+                        <label for="staff_id">ID Teknisi/Operator</label>
+                        <input id="staff_id" name="staff_id" required placeholder="Contoh: OPR-001">
+                    </div>
+                    <div>
+                        <label for="full_name">Nama Lengkap</label>
+                        <input id="full_name" name="full_name" required placeholder="Contoh: Budi Santoso">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div>
+                        <label for="role">Role</label>
+                        <select id="role" name="role">
+                            <option value="TEKNISI">TEKNISI</option>
+                            <option value="OPERATOR">OPERATOR</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="phone">No. HP</label>
+                        <input id="phone" name="phone" placeholder="Contoh: 081234567890">
+                    </div>
+                </div>
+
+                <label for="staff_notes">Catatan</label>
+                <textarea id="staff_notes" name="staff_notes" rows="2" placeholder="Catatan tambahan (opsional)"></textarea>
+
+                <label for="is_active">Status</label>
+                <select id="is_active" name="is_active">
+                    <option value="1">AKTIF</option>
+                    <option value="0">NON AKTIF</option>
+                </select>
+
+                <div class="actions">
+                    <button type="submit" class="btn primary">Tambah ID Lapangan</button>
+                    <button type="button" id="refreshFieldStaffBtn" class="btn ghost">Refresh Daftar</button>
+                </div>
+                <p id="fieldStaffMessage" class="helper"></p>
+            </form>
+
+            <div id="fieldStaffList" class="list-container"></div>
+        </section>
     </main>
 
     <script src="{{ url_for('static', filename='nav.js') }}"></script>
