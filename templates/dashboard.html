@@ -39,6 +39,11 @@
     <header class="hero">
         <h1>GeoFiber Infra Board</h1>
         <p>Pemetaan koordinat infrastruktur TIANG, ODP Fiber Optik, CLOSURE, dan tipe custom berbasis SQLite.</p>
+        <div class="hero-note-strip">
+            <span>Operasional Lapangan</span>
+            <span>Data Real-time</span>
+            <span>Ekspor KMZ</span>
+        </div>
         <div class="hero-actions">
             <button type="button" id="compactModeBtn" class="btn ghost compact-btn">Compact Mode: Off</button>
         </div>
@@ -48,119 +53,124 @@
         <section class="panel map-panel">
             <div class="panel-header">
                 <h2>Peta Infrastruktur</h2>
-                <select id="filterType">
-                    <option value="">Semua Tipe</option>
-                </select>
+                <div class="panel-header-controls">
+                    <select id="filterType">
+                        <option value="">Semua Tipe</option>
+                    </select>
+                    <button type="button" id="exportKmzBtn" class="btn primary">Export KMZ Jalur</button>
+                </div>
             </div>
+            <p class="section-subtitle">Klik peta untuk isi koordinat, atau gunakan GPS untuk mengambil posisi perangkat.</p>
             <div id="map"></div>
         </section>
 
-        <section class="panel form-panel">
-            <div class="panel-header">
-                <h2>Input Titik</h2>
-                <span id="modeBadge" class="badge">Mode: Tambah</span>
-            </div>
+        <div class="stack-col">
+            <section class="panel form-panel">
+                <div class="panel-header">
+                    <h2>Input Titik</h2>
+                    <span id="modeBadge" class="badge">Mode: Tambah</span>
+                </div>
 
-            <form id="infraForm">
-                <input type="hidden" id="itemId">
+                <form id="infraForm">
+                    <input type="hidden" id="itemId">
 
-                <label for="name">Nama Lokasi</label>
-                <input id="name" name="name" required placeholder="Contoh: TIANG-ALPHA-01">
+                    <label for="name">Nama Lokasi</label>
+                    <input id="name" name="name" required placeholder="Contoh: TIANG-ALPHA-01">
 
-                <label for="infra_type">Jenis Infrastruktur</label>
-                <select id="infra_type" name="infra_type" required></select>
+                    <label for="infra_type">Jenis Infrastruktur</label>
+                    <select id="infra_type" name="infra_type" required></select>
 
-                <details class="asset-manager">
-                    <summary>Kelola Jenis Infrastruktur</summary>
-                    <div class="asset-manager-body">
-                        <p class="helper">Tambah tipe sendiri, misalnya CLOSURE, HANDHOLE, MANHOLE, dan lainnya.</p>
-                        <div class="asset-inline-form">
-                            <input id="newInfraType" placeholder="Contoh: HANDHOLE">
-                            <button type="button" id="addInfraTypeBtn" class="btn ghost">Tambah Tipe</button>
+                    <details class="asset-manager">
+                        <summary>Kelola Jenis Infrastruktur</summary>
+                        <div class="asset-manager-body">
+                            <p class="helper">Tambah tipe sendiri, misalnya CLOSURE, HANDHOLE, MANHOLE, dan lainnya.</p>
+                            <div class="asset-inline-form">
+                                <input id="newInfraType" placeholder="Contoh: HANDHOLE">
+                                <button type="button" id="addInfraTypeBtn" class="btn ghost">Tambah Tipe</button>
+                            </div>
+                            <div id="infraTypeList" class="asset-type-list"></div>
                         </div>
-                        <div id="infraTypeList" class="asset-type-list"></div>
-                    </div>
-                </details>
+                    </details>
 
-                <label for="asset_name">Jenis Aset</label>
-                <select id="asset_name" name="asset_name" required></select>
+                    <label for="asset_name">Jenis Aset</label>
+                    <select id="asset_name" name="asset_name" required></select>
 
-                <details class="asset-manager">
-                    <summary>Kelola Jenis Aset</summary>
-                    <div class="asset-manager-body">
-                        <p class="helper">Tambah aset sesuai tipe infrastruktur aktif di atas.</p>
-                        <div class="asset-inline-form">
-                            <input id="newAssetName" placeholder="Contoh: TIANG_11M atau ODP_MANHOLE">
-                            <button type="button" id="addAssetBtn" class="btn ghost">Tambah Aset</button>
+                    <details class="asset-manager">
+                        <summary>Kelola Jenis Aset</summary>
+                        <div class="asset-manager-body">
+                            <p class="helper">Tambah aset sesuai tipe infrastruktur aktif di atas.</p>
+                            <div class="asset-inline-form">
+                                <input id="newAssetName" placeholder="Contoh: TIANG_11M atau ODP_MANHOLE">
+                                <button type="button" id="addAssetBtn" class="btn ghost">Tambah Aset</button>
+                            </div>
+                            <div id="assetTypeList" class="asset-type-list"></div>
                         </div>
-                        <div id="assetTypeList" class="asset-type-list"></div>
+                    </details>
+
+                    <div class="grid-2">
+                        <div>
+                            <label for="latitude">Latitude</label>
+                            <input id="latitude" name="latitude" required placeholder="-6.200000">
+                        </div>
+                        <div>
+                            <label for="longitude">Longitude</label>
+                            <input id="longitude" name="longitude" required placeholder="106.816666">
+                        </div>
                     </div>
-                </details>
 
-                <div class="grid-2">
-                    <div>
-                        <label for="latitude">Latitude</label>
-                        <input id="latitude" name="latitude" required placeholder="-6.200000">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="AKTIF">AKTIF</option>
+                        <option value="MAINTENANCE">MAINTENANCE</option>
+                        <option value="NON_AKTIF">NON AKTIF</option>
+                    </select>
+
+                    <label for="address">Alamat</label>
+                    <textarea id="address" name="address" rows="2" placeholder="Alamat singkat"></textarea>
+
+                    <label for="notes">Catatan</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="Keterangan tambahan"></textarea>
+
+                    <div class="actions">
+                        <button type="submit" class="btn primary">Simpan</button>
+                        <button type="button" id="resetBtn" class="btn ghost">Reset</button>
                     </div>
-                    <div>
-                        <label for="longitude">Longitude</label>
-                        <input id="longitude" name="longitude" required placeholder="106.816666">
+                    <div class="actions actions-inline">
+                        <button type="button" id="gpsBtn" class="btn ghost">Ambil GPS Saya</button>
+                        <button type="button" id="gpsCenterBtn" class="btn ghost">GPS + Fokus Peta</button>
                     </div>
+                    <p class="helper">Tips: Klik peta atau pakai GPS untuk mengisi latitude dan longitude otomatis.</p>
+                    <p class="helper">Untuk akses GPS di handphone, aktifkan izin lokasi pada browser. HTTPS lebih disarankan.</p>
+                </form>
+            </section>
+
+            <section class="panel line-panel">
+                <div class="panel-header">
+                    <h2>Jalur Antar Infrastruktur</h2>
                 </div>
+                <label for="linkFromId">Titik Asal (Server/Tiang/ODP)</label>
+                <select id="linkFromId"></select>
 
-                <label for="status">Status</label>
-                <select id="status" name="status">
-                    <option value="AKTIF">AKTIF</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
-                    <option value="NON_AKTIF">NON AKTIF</option>
-                </select>
+                <label for="linkToId">Titik Tujuan (ODP/Tiang Lain)</label>
+                <select id="linkToId"></select>
 
-                <label for="address">Alamat</label>
-                <textarea id="address" name="address" rows="2" placeholder="Alamat singkat"></textarea>
+                <label for="linkName">Nama Jalur (opsional)</label>
+                <input id="linkName" placeholder="Contoh: JALUR_SERVER_A_KE_ODP_01">
 
-                <label for="notes">Catatan</label>
-                <textarea id="notes" name="notes" rows="3" placeholder="Keterangan tambahan"></textarea>
-
-                <div class="actions">
-                    <button type="submit" class="btn primary">Simpan</button>
-                    <button type="button" id="resetBtn" class="btn ghost">Reset</button>
+                <div class="actions actions-inline">
+                    <button type="button" id="addLinkBtn" class="btn ghost">Tambah Jalur</button>
                 </div>
-                <div class="actions">
-                    <button type="button" id="gpsBtn" class="btn ghost">Ambil GPS Saya</button>
-                    <button type="button" id="gpsCenterBtn" class="btn ghost">GPS + Fokus Peta</button>
+                <div id="linkListContainer" class="list-container compact-list"></div>
+            </section>
+
+            <section class="panel list-panel">
+                <div class="panel-header">
+                    <h2>Daftar Titik</h2>
+                    <strong id="itemCount">0 data</strong>
                 </div>
-                <p class="helper">Tips: Klik peta atau pakai GPS untuk mengisi latitude dan longitude otomatis.</p>
-                <p class="helper">Untuk akses GPS di handphone, aktifkan izin lokasi pada browser. HTTPS lebih disarankan.</p>
-            </form>
-        </section>
-
-        <section class="panel list-panel">
-            <div class="panel-header">
-                <h2>Daftar Titik</h2>
-                <strong id="itemCount">0 data</strong>
-            </div>
-            <div id="listContainer" class="list-container"></div>
-        </section>
-
-        <section class="panel line-panel">
-            <div class="panel-header">
-                <h2>Jalur Antar Infrastruktur</h2>
-            </div>
-            <label for="linkFromId">Titik Asal (Server/Tiang/ODP)</label>
-            <select id="linkFromId"></select>
-
-            <label for="linkToId">Titik Tujuan (ODP/Tiang Lain)</label>
-            <select id="linkToId"></select>
-
-            <label for="linkName">Nama Jalur (opsional)</label>
-            <input id="linkName" placeholder="Contoh: JALUR_SERVER_A_KE_ODP_01">
-
-            <div class="actions">
-                <button type="button" id="addLinkBtn" class="btn ghost">Tambah Jalur</button>
-                <button type="button" id="exportKmzBtn" class="btn primary">Export KMZ Jalur</button>
-            </div>
-            <div id="linkListContainer" class="list-container compact-list"></div>
-        </section>
+                <div id="listContainer" class="list-container"></div>
+            </section>
+        </div>
     </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
