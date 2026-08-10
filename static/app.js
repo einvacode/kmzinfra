@@ -156,7 +156,10 @@ function renderInfraTypeList() {
             (item) => `
                 <div class="asset-type-item">
                     <strong>${escapeHtml(item.infra_type)}</strong>
-                    <button type="button" data-action="delete-infra" data-id="${item.id}">Hapus</button>
+                    <div class="row-actions">
+                        <button type="button" data-action="edit-infra" data-id="${item.id}">Edit</button>
+                        <button type="button" data-action="delete-infra" data-id="${item.id}">Hapus</button>
+                    </div>
                 </div>
             `
         )
@@ -208,7 +211,10 @@ function renderAssetTypeList() {
             (asset) => `
                 <div class="asset-type-item">
                     <strong>${escapeHtml(asset.asset_name)}</strong>
-                    <button type="button" data-action="delete-asset" data-id="${asset.id}">Hapus</button>
+                    <div class="row-actions">
+                        <button type="button" data-action="edit-asset" data-id="${asset.id}">Edit</button>
+                        <button type="button" data-action="delete-asset" data-id="${asset.id}">Hapus</button>
+                    </div>
                 </div>
             `
         )
@@ -597,6 +603,23 @@ async function removeAssetType(id) {
     await loadAssetTypes();
 }
 
+async function updateAssetType(id, assetName) {
+    const response = await fetch(`/api/asset-types/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ asset_name: assetName })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal memperbarui aset.");
+    }
+
+    await loadAssetTypes();
+    await loadAllInfraData();
+    await loadData();
+    await loadInfraLinks();
+}
+
 async function removeInfraType(id) {
     const response = await fetch(`/api/infra-types/${id}`, { method: "DELETE" });
     const result = await response.json();
@@ -607,6 +630,26 @@ async function removeInfraType(id) {
     await loadInfraTypes();
     await loadAssetTypes();
     await loadData();
+}
+
+async function updateInfraType(id, infraTypeName) {
+    const response = await fetch(`/api/infra-types/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ infra_type: infraTypeName })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal memperbarui jenis infrastruktur.");
+    }
+
+    await loadInfraTypes();
+    fieldType.value = infraTypeName;
+    filterType.value = infraTypeName;
+    await loadAssetTypes();
+    await loadAllInfraData();
+    await loadData();
+    await loadInfraLinks();
 }
 
 async function addInfraLink() {
@@ -718,22 +761,41 @@ assetTypeList.addEventListener("click", async (event) => {
         return;
     }
 
-    if (target.dataset.action !== "delete-asset") {
-        return;
-    }
-
-    const id = Number(target.dataset.id);
-    if (!id) {
-        return;
-    }
-
-    const yes = window.confirm("Hapus jenis aset ini?");
-    if (!yes) {
-        return;
-    }
-
     try {
-        await removeAssetType(id);
+        const action = target.dataset.action;
+        const id = Number(target.dataset.id);
+        if (!id) {
+            return;
+        }
+
+        if (action === "delete-asset") {
+            const yes = window.confirm("Hapus jenis aset ini?");
+            if (!yes) {
+                return;
+            }
+            await removeAssetType(id);
+            return;
+        }
+
+        if (action === "edit-asset") {
+            const current = assetTypes.find((asset) => asset.id === id);
+            if (!current) {
+                return;
+            }
+
+            const edited = window.prompt("Ubah nama jenis aset:", current.asset_name || "");
+            if (edited === null) {
+                return;
+            }
+
+            const newName = edited.trim().toUpperCase();
+            if (!newName) {
+                window.alert("Nama aset tidak boleh kosong.");
+                return;
+            }
+
+            await updateAssetType(id, newName);
+        }
     } catch (error) {
         window.alert(error.message);
     }
@@ -753,22 +815,41 @@ infraTypeList.addEventListener("click", async (event) => {
         return;
     }
 
-    if (target.dataset.action !== "delete-infra") {
-        return;
-    }
-
-    const id = Number(target.dataset.id);
-    if (!id) {
-        return;
-    }
-
-    const yes = window.confirm("Hapus jenis infrastruktur ini?");
-    if (!yes) {
-        return;
-    }
-
     try {
-        await removeInfraType(id);
+        const action = target.dataset.action;
+        const id = Number(target.dataset.id);
+        if (!id) {
+            return;
+        }
+
+        if (action === "delete-infra") {
+            const yes = window.confirm("Hapus jenis infrastruktur ini?");
+            if (!yes) {
+                return;
+            }
+            await removeInfraType(id);
+            return;
+        }
+
+        if (action === "edit-infra") {
+            const current = infraTypes.find((item) => item.id === id);
+            if (!current) {
+                return;
+            }
+
+            const edited = window.prompt("Ubah nama jenis infrastruktur:", current.infra_type || "");
+            if (edited === null) {
+                return;
+            }
+
+            const newType = edited.trim().toUpperCase();
+            if (!newType) {
+                window.alert("Nama jenis infrastruktur tidak boleh kosong.");
+                return;
+            }
+
+            await updateInfraType(id, newType);
+        }
     } catch (error) {
         window.alert(error.message);
     }

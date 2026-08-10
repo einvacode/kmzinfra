@@ -876,6 +876,50 @@ def delete_asset_type(item_id: int):
     return jsonify({"ok": True, "message": "Data aset berhasil dihapus."})
 
 
+@app.route("/api/asset-types/<int:item_id>", methods=["PUT"])
+@login_required
+def update_asset_type(item_id: int):
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    asset_name = str(payload.get("asset_name", "")).strip().upper()
+
+    if not asset_name:
+        return _error("Nama aset wajib diisi.", 422)
+
+    db = get_db()
+    row = db.execute(
+        "SELECT id, infra_type, asset_name FROM asset_types WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+    if not row:
+        return _error("Data aset tidak ditemukan.", 404)
+
+    duplicate = db.execute(
+        """
+        SELECT id
+        FROM asset_types
+        WHERE infra_type = ? AND asset_name = ? AND id != ?
+        """,
+        (row["infra_type"], asset_name, item_id),
+    ).fetchone()
+    if duplicate:
+        return _error("Nama aset sudah ada pada tipe infrastruktur ini.", 409)
+
+    old_asset_name = row["asset_name"]
+    db.execute("UPDATE asset_types SET asset_name = ? WHERE id = ?", (asset_name, item_id))
+    db.execute(
+        """
+        UPDATE infrastructure
+        SET asset_name = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE infra_type = ? AND asset_name = ?
+        """,
+        (asset_name, row["infra_type"], old_asset_name),
+    )
+    db.commit()
+
+    return jsonify({"ok": True, "message": "Jenis aset berhasil diperbarui."})
+
+
 @app.route("/api/infra-types", methods=["GET"])
 @login_required
 def list_infra_types():
@@ -945,6 +989,47 @@ def delete_infra_type(item_id: int):
     db.commit()
 
     return jsonify({"ok": True, "message": "Jenis infrastruktur berhasil dihapus."})
+
+
+@app.route("/api/infra-types/<int:item_id>", methods=["PUT"])
+@login_required
+def update_infra_type(item_id: int):
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    infra_type = str(payload.get("infra_type", "")).strip().upper()
+
+    if not infra_type:
+        return _error("Nama jenis infrastruktur wajib diisi.", 422)
+
+    db = get_db()
+    row = db.execute("SELECT id, infra_type FROM infra_types WHERE id = ?", (item_id,)).fetchone()
+    if not row:
+        return _error("Jenis infrastruktur tidak ditemukan.", 404)
+
+    duplicate = db.execute(
+        "SELECT id FROM infra_types WHERE infra_type = ? AND id != ?",
+        (infra_type, item_id),
+    ).fetchone()
+    if duplicate:
+        return _error("Nama jenis infrastruktur sudah dipakai.", 409)
+
+    old_infra_type = row["infra_type"]
+    try:
+        db.execute("UPDATE infra_types SET infra_type = ? WHERE id = ?", (infra_type, item_id))
+        db.execute("UPDATE asset_types SET infra_type = ? WHERE infra_type = ?", (infra_type, old_infra_type))
+        db.execute(
+            """
+            UPDATE infrastructure
+            SET infra_type = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE infra_type = ?
+            """,
+            (infra_type, old_infra_type),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        return _error("Perubahan gagal karena memicu duplikasi data aset pada tipe baru.", 409)
+
+    return jsonify({"ok": True, "message": "Jenis infrastruktur berhasil diperbarui."})
 
 
 @app.route("/api/backup/create", methods=["POST"])
