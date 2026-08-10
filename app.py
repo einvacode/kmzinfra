@@ -306,6 +306,19 @@ def login_required(fn):
                 return _error("Sesi login tidak valid. Silakan login ulang.", 401)
             return redirect(url_for("login", next=request.path))
 
+        db = get_db()
+        user_row = db.execute(
+            "SELECT id, must_change_password FROM users WHERE id = ?",
+            (session.get("user_id"),),
+        ).fetchone()
+        if not user_row:
+            session.clear()
+            if request.path.startswith("/api/"):
+                return _error("Akun tidak ditemukan. Silakan login ulang.", 401)
+            return redirect(url_for("login", next=request.path))
+
+        session["force_password_change"] = bool(user_row["must_change_password"])
+
         # Jika user wajib ganti password, batasi akses hanya ke halaman admin akun,
         # endpoint update user, dan logout sampai password diganti.
         if session.get("force_password_change"):
@@ -552,6 +565,14 @@ def landing_page():
 def login():
     init_db()
     if "user_id" in session:
+        db = get_db()
+        existing_user = db.execute(
+            "SELECT id, must_change_password FROM users WHERE id = ?",
+            (session.get("user_id"),),
+        ).fetchone()
+        if existing_user and existing_user["must_change_password"]:
+            session["force_password_change"] = True
+            return redirect(url_for("admin_account_page", forced="1"))
         return redirect(url_for("dashboard"))
 
     error_message = ""
@@ -1285,6 +1306,15 @@ def update_user_credentials(user_id: int):
     user = db.execute("SELECT id, username FROM users WHERE id = ?", (user_id,)).fetchone()
     if not user:
         return _error("Akun tidak ditemukan.", 404)
+
+    must_change_row = db.execute(
+        "SELECT must_change_password FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    must_change_password = bool(must_change_row["must_change_password"]) if must_change_row else False
+
+    if must_change_password and not new_password:
+        return _error("Anda wajib mengisi password baru untuk akun yang masih default.", 422)
 
     duplicate = db.execute(
         "SELECT id FROM users WHERE username = ? AND id != ?",

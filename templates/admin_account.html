@@ -46,15 +46,15 @@
                 <p class="error-box">Keamanan: Anda masih menggunakan password default admin. Silakan ganti password sekarang sebelum mengakses menu lain.</p>
             {% endif %}
 
-            <form id="adminAccountForm">
+            <form id="adminAccountForm" data-force-password-change="{{ '1' if forced_password_change else '0' }}">
                 <label for="selected_user_id">Pilih Akun</label>
                 <select id="selected_user_id" name="selected_user_id" required></select>
 
                 <label for="admin_username">Username Admin</label>
                 <input id="admin_username" name="admin_username" required placeholder="Contoh: admin_kmz">
 
-                <label for="admin_new_password">Password Baru (opsional)</label>
-                <input id="admin_new_password" name="admin_new_password" type="password" placeholder="Kosongkan jika tidak ingin ganti password">
+                <label for="admin_new_password">Password Baru {% if forced_password_change %}(wajib){% else %}(opsional){% endif %}</label>
+                <input id="admin_new_password" name="admin_new_password" type="password" placeholder="{% if forced_password_change %}Wajib isi password baru{% else %}Kosongkan jika tidak ingin ganti password{% endif %}">
 
                 <div class="actions">
                     <button type="submit" class="btn primary">Simpan Perubahan Akun</button>

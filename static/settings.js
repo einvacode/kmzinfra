@@ -130,9 +130,14 @@ async function updateUserAccount() {
 
     const username = adminUsername.value.trim();
     const newPassword = adminNewPassword.value;
+    const forcePasswordChange = adminAccountForm?.dataset.forcePasswordChange === "1";
 
     if (!username) {
         throw new Error("Username admin wajib diisi.");
+    }
+
+    if (forcePasswordChange && !newPassword.trim()) {
+        throw new Error("Password baru wajib diisi karena akun masih menggunakan password default.");
     }
 
     const response = await fetch(`/api/users/${id}`, {
