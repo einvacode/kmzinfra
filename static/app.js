@@ -156,6 +156,7 @@ function actionIcon(action, label, id, extraClass = "") {
         focus: "&#9673;",
         "focus-link": "&#9673;",
         edit: "&#9998;",
+        "edit-point": "&#9998;",
         "edit-link": "&#9998;",
         "edit-asset": "&#9998;",
         "edit-infra": "&#9998;",
@@ -166,6 +167,13 @@ function actionIcon(action, label, id, extraClass = "") {
     };
     const className = `icon-action ${extraClass}`.trim();
     return `<button type="button" class="${className}" data-action="${action}" data-id="${id}" aria-label="${label}" title="${label}">${icons[action] || "&#8226;"}</button>`;
+}
+
+function openInfraEditForm(item, marker = null) {
+    fillForm(item);
+    if (marker) {
+        marker.closePopup();
+    }
 }
 
 function renderSummary() {
@@ -560,14 +568,43 @@ function renderMarkers(items) {
         }).addTo(markerLayer);
 
         const popup = `
-            <strong>${escapeHtml(item.name)}</strong><br>
-            Tipe: ${escapeHtml(item.infra_type)}<br>
-            Aset: ${escapeHtml(item.asset_name || "-")}<br>
-            Status: ${escapeHtml(item.status || "-")}<br>
-            Lat/Lng: ${item.latitude}, ${item.longitude}
+            <div class="popup-card">
+                <strong>${escapeHtml(item.name)}</strong><br>
+                Tipe: ${escapeHtml(item.infra_type)}<br>
+                Aset: ${escapeHtml(item.asset_name || "-")}<br>
+                Status: ${escapeHtml(item.status || "-")}<br>
+                Lat/Lng: ${item.latitude}, ${item.longitude}
+                <div class="row-actions popup-actions" style="margin-top:8px">
+                    ${actionIcon("edit-point", "Edit titik", item.id)}
+                </div>
+            </div>
         `;
         marker.bindPopup(popup);
-        marker.on("click", () => fillForm(item));
+        marker.on("popupopen", () => {
+            const popupElement = marker.getPopup() && marker.getPopup().getElement ? marker.getPopup().getElement() : null;
+            if (!popupElement) {
+                return;
+            }
+
+            const handlePopupClick = async (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) {
+                    return;
+                }
+
+                const action = target.dataset.action;
+                if (action !== "edit-point") {
+                    return;
+                }
+
+                openInfraEditForm(item, marker);
+            };
+
+            popupElement.addEventListener("click", handlePopupClick);
+            marker.once("popupclose", () => {
+                popupElement.removeEventListener("click", handlePopupClick);
+            });
+        });
         marker.on("dragend", async () => {
             const latLng = marker.getLatLng();
             try {
@@ -939,7 +976,7 @@ listContainer.addEventListener("click", async (event) => {
         }
 
         if (action === "edit") {
-            fillForm(item);
+            openInfraEditForm(item);
             map.flyTo([item.latitude, item.longitude], 16, { duration: 0.7 });
             return;
         }
