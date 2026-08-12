@@ -95,11 +95,15 @@
                 <form id="infraForm">
                     <input type="hidden" id="itemId">
 
-                    <label for="name">Nama Lokasi</label>
-                    <input id="name" name="name" required placeholder="Contoh: TIANG-ALPHA-01">
+                    <div class="form-field">
+                        <label for="name">Nama Lokasi</label>
+                        <input id="name" name="name" required placeholder="Contoh: TIANG-ALPHA-01">
+                    </div>
 
-                    <label for="infra_type">Jenis Infrastruktur</label>
-                    <select id="infra_type" name="infra_type" required></select>
+                    <div class="form-field">
+                        <label for="infra_type">Jenis Infrastruktur</label>
+                        <select id="infra_type" name="infra_type" required></select>
+                    </div>
 
                     <details class="asset-manager">
                         <summary>Kelola Jenis Infrastruktur</summary>
@@ -113,8 +117,10 @@
                         </div>
                     </details>
 
-                    <label for="asset_name">Jenis Aset</label>
-                    <select id="asset_name" name="asset_name" required></select>
+                    <div class="form-field">
+                        <label for="asset_name">Jenis Aset</label>
+                        <select id="asset_name" name="asset_name" required></select>
+                    </div>
 
                     <details class="asset-manager">
                         <summary>Kelola Jenis Aset</summary>
@@ -139,18 +145,24 @@
                         </div>
                     </div>
 
-                    <label for="status">Status</label>
-                    <select id="status" name="status">
-                        <option value="AKTIF">AKTIF</option>
-                        <option value="MAINTENANCE">MAINTENANCE</option>
-                        <option value="NON_AKTIF">NON AKTIF</option>
-                    </select>
+                    <div class="form-field">
+                        <label for="status">Status</label>
+                        <select id="status" name="status">
+                            <option value="AKTIF">AKTIF</option>
+                            <option value="MAINTENANCE">MAINTENANCE</option>
+                            <option value="NON_AKTIF">NON AKTIF</option>
+                        </select>
+                    </div>
 
-                    <label for="address">Alamat</label>
-                    <textarea id="address" name="address" rows="2" placeholder="Alamat singkat"></textarea>
+                    <div class="form-field">
+                        <label for="address">Alamat</label>
+                        <textarea id="address" name="address" rows="2" placeholder="Alamat singkat"></textarea>
+                    </div>
 
-                    <label for="notes">Catatan</label>
-                    <textarea id="notes" name="notes" rows="3" placeholder="Keterangan tambahan"></textarea>
+                    <div class="form-field">
+                        <label for="notes">Catatan</label>
+                        <textarea id="notes" name="notes" rows="3" placeholder="Keterangan tambahan"></textarea>
+                    </div>
 
                     <div class="actions">
                         <button type="submit" class="btn primary">Simpan</button>
