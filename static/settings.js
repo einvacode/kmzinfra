@@ -14,6 +14,8 @@ const adminNewPassword = document.getElementById("admin_new_password");
 const refreshUsersBtn = document.getElementById("refreshUsersBtn");
 const adminAccountMessage = document.getElementById("adminAccountMessage");
 const userList = document.getElementById("userList");
+const createAdminForm = document.getElementById("createAdminForm");
+const createAdminMessage = document.getElementById("createAdminMessage");
 
 let cachedUsers = [];
 
@@ -53,6 +55,14 @@ function setAdminAccountMessage(message, isError = false) {
     }
     adminAccountMessage.textContent = message;
     adminAccountMessage.classList.toggle("error-text", isError);
+}
+
+function setCreateAdminMessage(message, isError = false) {
+    if (!createAdminMessage) {
+        return;
+    }
+    createAdminMessage.textContent = message;
+    createAdminMessage.classList.toggle("error-text", isError);
 }
 
 function renderUserOptions() {
@@ -159,6 +169,29 @@ async function updateUserAccount() {
     applySelectedUserToForm(id);
 }
 
+async function createAdminAccount() {
+    if (!createAdminForm) {
+        return;
+    }
+
+    const username = document.getElementById("new_admin_username").value.trim();
+    const password = document.getElementById("new_admin_password").value;
+
+    const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal menambah akun admin.");
+    }
+
+    createAdminForm.reset();
+    setCreateAdminMessage("Akun admin baru berhasil ditambahkan.");
+    await loadUsers();
+}
+
 function renderFieldStaffList(items) {
     if (!fieldStaffList) {
         return;
@@ -176,8 +209,10 @@ function renderFieldStaffList(items) {
                 <article class="list-item">
                     <h3>${escapeHtml(item.staff_id)} - ${escapeHtml(item.full_name)}</h3>
                     <p class="meta">${escapeHtml(item.role)} | ${escapeHtml(statusText)} | ${escapeHtml(item.phone || "-")}</p>
+                    <p class="meta">Login: ${item.has_password ? "Password sudah dibuat" : "Password belum dibuat"}</p>
                     <p class="meta">${escapeHtml(item.notes || "-")}</p>
                     <div class="row-actions">
+                        <button data-action="reset-staff-password" data-id="${item.id}">Ubah Password</button>
                         <button data-action="delete-staff" data-id="${item.id}">Hapus</button>
                     </div>
                 </article>
@@ -204,6 +239,7 @@ async function createFieldStaff() {
         staff_id: document.getElementById("staff_id").value.trim(),
         full_name: document.getElementById("full_name").value.trim(),
         role: document.getElementById("role").value,
+        password: document.getElementById("staff_password").value,
         phone: document.getElementById("phone").value.trim(),
         notes: document.getElementById("staff_notes").value.trim(),
         is_active: document.getElementById("is_active").value === "1"
@@ -231,6 +267,19 @@ async function deleteFieldStaff(id) {
     const result = await response.json();
     if (!response.ok || !result.ok) {
         throw new Error(result.message || "Gagal menghapus ID lapangan.");
+    }
+    await loadFieldStaff();
+}
+
+async function updateFieldStaffPassword(id, password) {
+    const response = await fetch(`/api/field-staff/${id}/password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal mengubah password teknisi/operator.");
     }
     await loadFieldStaff();
 }
@@ -340,23 +389,34 @@ if (fieldStaffList) {
             return;
         }
 
-        if (target.dataset.action !== "delete-staff") {
-            return;
-        }
-
+        const action = target.dataset.action;
         const id = Number(target.dataset.id);
         if (!id) {
             return;
         }
 
-        const yes = window.confirm("Hapus ID teknisi/operator ini?");
-        if (!yes) {
-            return;
-        }
-
         try {
-            await deleteFieldStaff(id);
-            setFieldStaffMessage("Data teknisi/operator berhasil dihapus.");
+            if (action === "delete-staff") {
+                const yes = window.confirm("Hapus ID teknisi/operator ini?");
+                if (!yes) {
+                    return;
+                }
+                await deleteFieldStaff(id);
+                setFieldStaffMessage("Data teknisi/operator berhasil dihapus.");
+                return;
+            }
+
+            if (action === "reset-staff-password") {
+                const password = window.prompt("Masukkan password baru untuk ID ini (minimal 6 karakter):");
+                if (password === null) {
+                    return;
+                }
+                if (password.length < 6) {
+                    throw new Error("Password baru minimal 6 karakter.");
+                }
+                await updateFieldStaffPassword(id, password);
+                setFieldStaffMessage("Password teknisi/operator berhasil diperbarui.");
+            }
         } catch (error) {
             setFieldStaffMessage(error.message, true);
         }
@@ -402,6 +462,17 @@ if (adminAccountForm) {
             await updateUserAccount();
         } catch (error) {
             setAdminAccountMessage(error.message, true);
+        }
+    });
+}
+
+if (createAdminForm) {
+    createAdminForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            await createAdminAccount();
+        } catch (error) {
+            setCreateAdminMessage(error.message, true);
         }
     });
 }

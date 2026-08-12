@@ -65,6 +65,24 @@
 
             <div id="userList" class="list-container"></div>
         </section>
+
+        <section class="panel settings-panel">
+            <h2>Tambah Akun Admin</h2>
+            <p class="helper">Buat akun admin baru untuk pengguna yang membutuhkan akses pengelolaan aplikasi.</p>
+
+            <form id="createAdminForm">
+                <label for="new_admin_username">Username Admin Baru</label>
+                <input id="new_admin_username" name="new_admin_username" required placeholder="Contoh: admin_operasional">
+
+                <label for="new_admin_password">Password Admin Baru</label>
+                <input id="new_admin_password" name="new_admin_password" type="password" required minlength="6" placeholder="Minimal 6 karakter">
+
+                <div class="actions">
+                    <button type="submit" class="btn primary">Tambah Admin</button>
+                </div>
+                <p id="createAdminMessage" class="helper"></p>
+            </form>
+        </section>
     </main>
 
     <script src="{{ url_for('static', filename='nav.js') }}"></script>

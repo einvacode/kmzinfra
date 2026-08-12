@@ -905,6 +905,57 @@ def delete_infra_link(item_id: int):
     return jsonify({"ok": True, "message": "Jalur berhasil dihapus."})
 
 
+@app.route("/api/infra-links/<int:item_id>", methods=["PUT"])
+@login_required
+def update_infra_link(item_id: int):
+    init_db()
+    payload = request.get_json(silent=True) or {}
+
+    try:
+        from_infra_id = int(payload.get("from_infra_id"))
+        to_infra_id = int(payload.get("to_infra_id"))
+    except (TypeError, ValueError):
+        return _error("from_infra_id dan to_infra_id wajib berupa angka.", 422)
+
+    line_name = str(payload.get("line_name", "")).strip()
+    if from_infra_id == to_infra_id:
+        return _error("Titik asal dan tujuan tidak boleh sama.", 422)
+
+    db = get_db()
+    current_link = db.execute("SELECT id FROM infra_links WHERE id = ?", (item_id,)).fetchone()
+    if not current_link:
+        return _error("Data jalur tidak ditemukan.", 404)
+
+    from_row = db.execute("SELECT id FROM infrastructure WHERE id = ?", (from_infra_id,)).fetchone()
+    to_row = db.execute("SELECT id FROM infrastructure WHERE id = ?", (to_infra_id,)).fetchone()
+    if not from_row or not to_row:
+        return _error("Titik asal atau tujuan tidak ditemukan.", 404)
+
+    duplicate = db.execute(
+        """
+        SELECT id
+        FROM infra_links
+        WHERE id != ?
+          AND ((from_infra_id = ? AND to_infra_id = ?)
+            OR (from_infra_id = ? AND to_infra_id = ?))
+        """,
+        (item_id, from_infra_id, to_infra_id, to_infra_id, from_infra_id),
+    ).fetchone()
+    if duplicate:
+        return _error("Jalur antara dua titik ini sudah ada.", 409)
+
+    db.execute(
+        """
+        UPDATE infra_links
+        SET from_infra_id = ?, to_infra_id = ?, line_name = ?
+        WHERE id = ?
+        """,
+        (from_infra_id, to_infra_id, line_name, item_id),
+    )
+    db.commit()
+    return jsonify({"ok": True, "message": "Jalur berhasil diperbarui."})
+
+
 @app.route("/api/asset-types", methods=["GET"])
 @login_required
 def list_asset_types():
@@ -1339,6 +1390,35 @@ def list_users():
         """
     ).fetchall()
     return jsonify({"ok": True, "data": [dict(r) for r in rows]})
+
+
+@app.route("/api/users", methods=["POST"])
+@login_required
+def create_user():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", ""))
+
+    if not username:
+        return _error("Username admin wajib diisi.", 422)
+    if len(password) < 6:
+        return _error("Password admin minimal 6 karakter.", 422)
+
+    db = get_db()
+    try:
+        cursor = db.execute(
+            """
+            INSERT INTO users (username, password_hash, must_change_password)
+            VALUES (?, ?, 0)
+            """,
+            (username, generate_password_hash(password)),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        return _error("Username sudah dipakai akun lain.", 409)
+
+    return jsonify({"ok": True, "id": cursor.lastrowid, "message": "Akun admin baru berhasil ditambahkan."}), 201
 
 
 @app.route("/api/users/<int:user_id>", methods=["PUT"])

@@ -149,7 +149,9 @@
             <section class="panel line-panel">
                 <div class="panel-header">
                     <h2>Jalur Antar Infrastruktur</h2>
+                    <span id="linkModeBadge" class="badge">Mode: Tambah</span>
                 </div>
+                <input type="hidden" id="linkId">
                 <label for="linkFromId">Titik Asal (Server/Tiang/ODP)</label>
                 <select id="linkFromId"></select>
 
@@ -160,9 +162,14 @@
                 <input id="linkName" placeholder="Contoh: JALUR_SERVER_A_KE_ODP_01">
 
                 <div class="actions actions-inline">
-                    <button type="button" id="addLinkBtn" class="btn ghost">Tambah Jalur</button>
+                    <button type="button" id="addLinkBtn" class="btn primary">Tambah Jalur</button>
+                    <button type="button" id="resetLinkBtn" class="btn ghost">Batal Edit</button>
                 </div>
-                <div id="linkListContainer" class="list-container compact-list"></div>
+                <div class="panel-header route-list-header">
+                    <h3>Semua Jalur Kabel</h3>
+                    <strong id="linkCount">0 jalur</strong>
+                </div>
+                <div id="linkListContainer" class="list-container route-list"></div>
             </section>
 
             <section class="panel list-panel">

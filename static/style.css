@@ -469,6 +469,22 @@ textarea:focus {
     max-height: 240px;
 }
 
+.route-list-header {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+}
+
+.route-list-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.route-list {
+    max-height: none;
+    overflow: visible;
+}
+
 #backupInfo {
     margin-top: 10px;
 }

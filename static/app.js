@@ -16,8 +16,12 @@ const linkFromId = document.getElementById("linkFromId");
 const linkToId = document.getElementById("linkToId");
 const linkName = document.getElementById("linkName");
 const addLinkBtn = document.getElementById("addLinkBtn");
+const resetLinkBtn = document.getElementById("resetLinkBtn");
 const exportKmzBtn = document.getElementById("exportKmzBtn");
 const linkListContainer = document.getElementById("linkListContainer");
+const linkId = document.getElementById("linkId");
+const linkModeBadge = document.getElementById("linkModeBadge");
+const linkCount = document.getElementById("linkCount");
 const compactModeBtn = document.getElementById("compactModeBtn");
 
 const fieldId = document.getElementById("itemId");
@@ -282,6 +286,10 @@ function renderLinkList() {
         return;
     }
 
+    if (linkCount) {
+        linkCount.textContent = `${infraLinks.length} jalur`;
+    }
+
     if (infraLinks.length === 0) {
         linkListContainer.innerHTML = '<p class="muted">Belum ada jalur. Tambahkan koneksi antar titik.</p>';
         return;
@@ -296,12 +304,37 @@ function renderLinkList() {
                     <p class="meta">${escapeHtml(link.from_name)} (${escapeHtml(link.from_type)}) -> ${escapeHtml(link.to_name)} (${escapeHtml(link.to_type)})</p>
                     <div class="row-actions">
                         <button data-action="focus-link" data-id="${link.id}">Lihat Jalur</button>
+                        <button data-action="edit-link" data-id="${link.id}">Edit Jalur</button>
                         <button data-action="delete-link" data-id="${link.id}">Hapus</button>
                     </div>
                 </article>
             `;
         })
         .join("");
+}
+
+function resetLinkForm() {
+    if (!linkId || !linkModeBadge || !addLinkBtn) {
+        return;
+    }
+
+    linkId.value = "";
+    linkName.value = "";
+    linkModeBadge.textContent = "Mode: Tambah";
+    addLinkBtn.textContent = "Tambah Jalur";
+}
+
+function fillLinkForm(link) {
+    if (!linkId || !linkModeBadge || !addLinkBtn) {
+        return;
+    }
+
+    linkId.value = String(link.id);
+    linkFromId.value = String(link.from_infra_id);
+    linkToId.value = String(link.to_infra_id);
+    linkName.value = link.line_name || "";
+    linkModeBadge.textContent = "Mode: Edit";
+    addLinkBtn.textContent = "Simpan Perubahan Jalur";
 }
 
 function setCoordinates(lat, lng) {
@@ -679,6 +712,31 @@ async function addInfraLink() {
     await loadInfraLinks();
 }
 
+async function updateInfraLink(id) {
+    const fromId = Number(linkFromId.value);
+    const toId = Number(linkToId.value);
+    if (!fromId || !toId) {
+        throw new Error("Pilih titik asal dan tujuan jalur.");
+    }
+
+    const response = await fetch(`/api/infra-links/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            from_infra_id: fromId,
+            to_infra_id: toId,
+            line_name: linkName.value.trim()
+        })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal memperbarui jalur.");
+    }
+
+    resetLinkForm();
+    await loadInfraLinks();
+}
+
 async function removeInfraLink(id) {
     const response = await fetch(`/api/infra-links/${id}`, { method: "DELETE" });
     const result = await response.json();
@@ -891,6 +949,11 @@ if (linkListContainer) {
                 return;
             }
 
+            if (action === "edit-link") {
+                fillLinkForm(link);
+                return;
+            }
+
             if (action === "delete-link") {
                 const yes = window.confirm("Hapus jalur ini?");
                 if (!yes) {
@@ -907,11 +970,20 @@ if (linkListContainer) {
 if (addLinkBtn) {
     addLinkBtn.addEventListener("click", async () => {
         try {
-            await addInfraLink();
+            const editingId = Number(linkId?.value);
+            if (editingId) {
+                await updateInfraLink(editingId);
+            } else {
+                await addInfraLink();
+            }
         } catch (error) {
             window.alert(error.message);
         }
     });
+}
+
+if (resetLinkBtn) {
+    resetLinkBtn.addEventListener("click", resetLinkForm);
 }
 
 if (exportKmzBtn) {
