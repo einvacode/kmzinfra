@@ -546,6 +546,8 @@ function fillForm(item) {
     fieldNotes.value = item.notes || "";
     fieldStatus.value = item.status || "AKTIF";
     modeBadge.textContent = "Mode: Edit";
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+    fieldName.focus();
 }
 
 function renderMarkers(items) {
@@ -1167,7 +1169,8 @@ if (editPointsOnMapBtn) {
 }
 
 fieldType.addEventListener("change", () => {
-    refreshAssetControls();
+    const selectedAsset = fieldAssetName.value;
+    refreshAssetControls(selectedAsset);
 });
 
 resetBtn.addEventListener("click", resetForm);
