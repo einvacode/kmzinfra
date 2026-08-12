@@ -393,6 +393,10 @@ a {
 .map-routes-page .form-panel.is-modal-open .form-panel-close {
     display: inline-flex;
     width: auto;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
 }
 
 .field-staff-page .asset-manager,
