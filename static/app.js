@@ -384,9 +384,9 @@ function renderLinkList() {
                     <h3>${escapeHtml(title)}</h3>
                     <p class="meta">${escapeHtml(link.from_name)} (${escapeHtml(link.from_type)}) -> ${escapeHtml(link.to_name)} (${escapeHtml(link.to_type)})</p>
                     <div class="row-actions">
-                        <button data-action="focus-link" data-id="${link.id}">Lihat Jalur</button>
-                        <button data-action="edit-link" data-id="${link.id}">Edit Jalur</button>
-                        <button data-action="delete-link" data-id="${link.id}">Hapus</button>
+                        <button type="button" data-action="focus-link" data-id="${link.id}">Lihat Jalur</button>
+                        <button type="button" data-action="edit-link" data-id="${link.id}">Edit Jalur</button>
+                        <button type="button" class="delete-route-btn" data-action="delete-link" data-id="${link.id}">Hapus Jalur</button>
                     </div>
                 </article>
             `;
@@ -846,12 +846,16 @@ async function updateInfraLink(id) {
 
 async function removeInfraLink(id) {
     const response = await fetch(`/api/infra-links/${id}`, { method: "DELETE" });
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok) {
         throw new Error(result.message || "Gagal menghapus jalur.");
     }
 
+    if (linkId?.value === String(id)) {
+        resetLinkForm();
+    }
     await loadInfraLinks();
+    renderSummary();
 }
 
 async function deleteData(id) {
@@ -1062,11 +1066,13 @@ if (linkListContainer) {
             }
 
             if (action === "delete-link") {
-                const yes = window.confirm("Hapus jalur ini?");
+                const routeName = link.line_name || `${link.from_name} ke ${link.to_name}`;
+                const yes = window.confirm(`Hapus jalur "${routeName}"? Tindakan ini tidak dapat dibatalkan.`);
                 if (!yes) {
                     return;
                 }
                 await removeInfraLink(id);
+                window.alert("Jalur berhasil dihapus.");
             }
         } catch (error) {
             window.alert(error.message);

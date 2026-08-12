@@ -613,6 +613,16 @@ textarea:focus {
     padding: 8px;
 }
 
+.delete-route-btn {
+    color: #b42318;
+    border-color: #f1c8c2;
+    background: #fff5f4;
+}
+
+.delete-route-btn:hover {
+    background: #fde8e6;
+}
+
 .muted {
     color: #64748b;
     font-size: 0.9rem;
