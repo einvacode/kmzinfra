@@ -377,6 +377,7 @@ a {
 .summary-item {
     display: grid;
     gap: 4px;
+    min-width: 0;
     padding: 14px;
     border: 1px solid var(--line);
     border-radius: 6px;
@@ -386,13 +387,17 @@ a {
 .summary-item strong {
     color: #0f2742;
     font-family: "IBM Plex Mono", monospace;
-    font-size: 1.5rem;
+    font-size: clamp(1.2rem, 5vw, 1.5rem);
+    overflow-wrap: anywhere;
 }
 
 .summary-item span {
     color: #526174;
     font-size: 0.8rem;
     font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    word-break: normal;
 }
 
 .panel {
@@ -777,6 +782,16 @@ textarea:focus {
 
     .summary-grid {
         grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .summary-item {
+        min-height: 92px;
+        padding: 11px;
+    }
+
+    .summary-item span {
+        font-size: 0.74rem;
     }
 
     .summary-dashboard-page #infraForm {
@@ -906,6 +921,16 @@ textarea:focus {
 
     .dashboard-page.compact-ui #map {
         height: min(66vh, 520px);
+    }
+}
+
+@media (max-width: 360px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-item {
+        min-height: 0;
     }
 }
 
