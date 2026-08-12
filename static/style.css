@@ -280,7 +280,6 @@ a {
 .summary-dashboard-page .map-panel,
 .summary-dashboard-page .line-panel,
 .summary-dashboard-page .list-panel,
-.map-routes-page .form-panel,
 .map-routes-page .summary-panel {
     display: none;
 }
