@@ -280,6 +280,21 @@ function refreshAssetControls(selectedAssetName = "") {
     renderAssetTypeList();
 }
 
+function selectedInfrastructureType() {
+    return filterType?.value || "";
+}
+
+function filteredLinks() {
+    const selectedType = selectedInfrastructureType();
+    if (!selectedType) {
+        return infraLinks;
+    }
+
+    return infraLinks.filter(
+        (link) => link.from_type === selectedType || link.to_type === selectedType
+    );
+}
+
 function renderLinkPointOptions() {
     if (!linkFromId || !linkToId) {
         return;
@@ -313,7 +328,7 @@ function renderLinkPointOptions() {
 function renderLinkLines() {
     lineLayer.clearLayers();
 
-    infraLinks.forEach((link) => {
+    filteredLinks().forEach((link) => {
         const line = L.polyline(
             link.route_coordinates || [
                 [link.from_latitude, link.from_longitude],
@@ -367,16 +382,20 @@ function renderLinkList() {
         return;
     }
 
+    const links = filteredLinks();
     if (linkCount) {
-        linkCount.textContent = `${infraLinks.length} jalur`;
+        linkCount.textContent = `${links.length} jalur`;
     }
 
-    if (infraLinks.length === 0) {
-        linkListContainer.innerHTML = '<p class="muted">Belum ada jalur. Tambahkan koneksi antar titik.</p>';
+    if (links.length === 0) {
+        const selectedType = selectedInfrastructureType();
+        linkListContainer.innerHTML = selectedType
+            ? `<p class="muted">Belum ada jalur yang terhubung dengan jenis ${escapeHtml(selectedType)}.</p>`
+            : '<p class="muted">Belum ada jalur. Tambahkan koneksi antar titik.</p>';
         return;
     }
 
-    linkListContainer.innerHTML = infraLinks
+    linkListContainer.innerHTML = links
         .map((link) => {
             const title = link.line_name || `${link.from_name} -> ${link.to_name}`;
             return `
@@ -1138,6 +1157,8 @@ resetBtn.addEventListener("click", resetForm);
 filterType.addEventListener("change", async () => {
     try {
         await loadData();
+        renderLinkLines();
+        renderLinkList();
     } catch (error) {
         window.alert(error.message);
     }
