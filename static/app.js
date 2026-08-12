@@ -24,6 +24,9 @@ const linkModeBadge = document.getElementById("linkModeBadge");
 const linkCount = document.getElementById("linkCount");
 const compactModeBtn = document.getElementById("compactModeBtn");
 const editPointsOnMapBtn = document.getElementById("editPointsOnMapBtn");
+const closeFormPanelBtn = document.getElementById("closeFormPanelBtn");
+const formPanel = document.querySelector(".form-panel");
+const formPanelBackdrop = document.getElementById("formPanelBackdrop");
 const summaryInfraCount = document.getElementById("summaryInfraCount");
 const summaryAssetCount = document.getElementById("summaryAssetCount");
 const summaryTypeCount = document.getElementById("summaryTypeCount");
@@ -67,6 +70,32 @@ let infraTypes = [];
 let infraLinks = [];
 let isCompactMode = false;
 let isPointEditMode = false;
+
+function isMapRoutesPage() {
+    return document.body.classList.contains("map-routes-page");
+}
+
+function openFormPanelModal() {
+    if (!isMapRoutesPage() || !formPanel) {
+        return;
+    }
+
+    formPanel.classList.add("is-modal-open");
+    if (formPanelBackdrop) {
+        formPanelBackdrop.hidden = false;
+    }
+}
+
+function closeFormPanelModal() {
+    if (!isMapRoutesPage() || !formPanel) {
+        return;
+    }
+
+    formPanel.classList.remove("is-modal-open");
+    if (formPanelBackdrop) {
+        formPanelBackdrop.hidden = true;
+    }
+}
 
 function isLocalhostHost(hostname) {
     return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
@@ -171,6 +200,13 @@ function actionIcon(action, label, id, extraClass = "") {
 
 function openInfraEditForm(item, marker = null) {
     fillForm(item);
+    openFormPanelModal();
+    if (isMapRoutesPage()) {
+        window.setTimeout(() => fieldName.focus(), 0);
+    } else {
+        form.scrollIntoView({ behavior: "smooth", block: "start" });
+        fieldName.focus();
+    }
     if (marker) {
         marker.closePopup();
     }
@@ -198,6 +234,7 @@ function resetForm() {
     renderInfraTypeOptions();
     refreshAssetControls();
     modeBadge.textContent = "Mode: Tambah";
+    closeFormPanelModal();
 }
 
 function renderInfraTypeOptions() {
@@ -554,8 +591,6 @@ function fillForm(item) {
     fieldNotes.value = item.notes || "";
     fieldStatus.value = item.status || "AKTIF";
     modeBadge.textContent = "Mode: Edit";
-    form.scrollIntoView({ behavior: "smooth", block: "start" });
-    fieldName.focus();
 }
 
 function renderMarkers(items) {
@@ -1202,6 +1237,18 @@ if (editPointsOnMapBtn) {
         isPointEditMode = !isPointEditMode;
         updatePointEditButton();
         renderMarkers(cachedData);
+    });
+}
+
+if (closeFormPanelBtn) {
+    closeFormPanelBtn.addEventListener("click", () => {
+        resetForm();
+    });
+}
+
+if (formPanelBackdrop) {
+    formPanelBackdrop.addEventListener("click", () => {
+        resetForm();
     });
 }
 

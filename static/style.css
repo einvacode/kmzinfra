@@ -280,6 +280,7 @@ a {
 .summary-dashboard-page .map-panel,
 .summary-dashboard-page .line-panel,
 .summary-dashboard-page .list-panel,
+.map-routes-page .form-panel,
 .map-routes-page .summary-panel {
     display: none;
 }
@@ -347,6 +348,51 @@ a {
 
 .map-routes-page .layout {
     grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.9fr);
+}
+
+.form-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(15, 23, 42, 0.48);
+}
+
+.form-panel-backdrop[hidden] {
+    display: none;
+}
+
+.form-panel-close {
+    display: none;
+    width: auto;
+    padding: 7px 10px;
+    font-size: 0.82rem;
+}
+
+.map-routes-page .form-panel.is-modal-open {
+    display: block;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    z-index: 1001;
+    max-width: 760px;
+    margin: 0 auto;
+    overflow: auto;
+}
+
+.map-routes-page .form-panel.is-modal-open .panel-header {
+    position: sticky;
+    top: 0;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    background: #fff;
+    z-index: 1;
+}
+
+.map-routes-page .form-panel.is-modal-open .form-panel-close {
+    display: inline-flex;
+    width: auto;
 }
 
 .field-staff-page .asset-manager,

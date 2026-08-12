@@ -89,7 +89,10 @@
             <section class="panel form-panel">
                 <div class="panel-header">
                     <h2>Input Titik</h2>
-                    <span id="modeBadge" class="badge">Mode: Tambah</span>
+                    <div class="panel-header-controls">
+                        <span id="modeBadge" class="badge">Mode: Tambah</span>
+                        <button type="button" id="closeFormPanelBtn" class="btn ghost form-panel-close">Tutup</button>
+                    </div>
                 </div>
 
                 <form id="infraForm">
@@ -212,6 +215,8 @@
             </section>
         </div>
     </main>
+
+    <div id="formPanelBackdrop" class="form-panel-backdrop" hidden></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
