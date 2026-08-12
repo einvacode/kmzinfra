@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from functools import wraps
 import io
+import json
 import os
 import shutil
 import sqlite3
@@ -218,6 +219,7 @@ def init_db() -> None:
             from_infra_id INTEGER NOT NULL,
             to_infra_id INTEGER NOT NULL,
             line_name TEXT DEFAULT '',
+            route_geometry TEXT NOT NULL DEFAULT '[]',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(from_infra_id, to_infra_id),
             FOREIGN KEY(from_infra_id) REFERENCES infrastructure(id) ON DELETE CASCADE,
@@ -225,6 +227,11 @@ def init_db() -> None:
         )
         """
     )
+
+    link_columns = db.execute("PRAGMA table_info(infra_links)").fetchall()
+    link_column_names = {col[1] for col in link_columns}
+    if "route_geometry" not in link_column_names:
+        db.execute("ALTER TABLE infra_links ADD COLUMN route_geometry TEXT NOT NULL DEFAULT '[]'")
 
     # Migrasi penamaan lama RIANG -> TIANG pada data titik.
     db.execute("UPDATE infrastructure SET infra_type = 'TIANG' WHERE infra_type = 'RIANG'")
@@ -528,6 +535,38 @@ def _to_float(value: Any, field_name: str) -> float:
         raise ValueError(f"Field '{field_name}' harus berupa angka.")
 
 
+def parse_route_geometry(value: Any) -> list[list[float]]:
+    if not isinstance(value, list) or len(value) < 2:
+        raise ValueError("Geometri jalur harus berisi minimal dua titik koordinat.")
+
+    geometry: list[list[float]] = []
+    for index, point in enumerate(value, start=1):
+        if not isinstance(point, (list, tuple)) or len(point) != 2:
+            raise ValueError(f"Titik jalur ke-{index} tidak valid.")
+        latitude = _to_float(point[0], f"route_geometry[{index}].latitude")
+        longitude = _to_float(point[1], f"route_geometry[{index}].longitude")
+        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+            raise ValueError(f"Titik jalur ke-{index} berada di luar rentang koordinat.")
+        geometry.append([latitude, longitude])
+    return geometry
+
+
+def get_route_coordinates(link: dict[str, Any]) -> list[list[float]]:
+    default_geometry = [
+        [link["from_latitude"], link["from_longitude"]],
+        [link["to_latitude"], link["to_longitude"]],
+    ]
+    try:
+        geometry = json.loads(link.get("route_geometry") or "[]")
+        parsed = parse_route_geometry(geometry)
+    except (ValueError, TypeError, json.JSONDecodeError):
+        parsed = default_geometry
+
+    parsed[0] = default_geometry[0]
+    parsed[-1] = default_geometry[-1]
+    return parsed
+
+
 def is_valid_infra_type(infra_type: str) -> bool:
     db = get_db()
     row = db.execute("SELECT id FROM infra_types WHERE infra_type = ?", (infra_type,)).fetchone()
@@ -815,6 +854,35 @@ def delete_infra(item_id: int):
     return jsonify({"ok": True, "message": "Data berhasil dihapus."})
 
 
+@app.route("/api/infra/<int:item_id>/coordinates", methods=["PUT"])
+@login_required
+def update_infra_coordinates(item_id: int):
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    try:
+        latitude = _to_float(payload.get("latitude"), "latitude")
+        longitude = _to_float(payload.get("longitude"), "longitude")
+    except ValueError as exc:
+        return _error(str(exc), 422)
+
+    if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+        return _error("Koordinat berada di luar rentang yang valid.", 422)
+
+    db = get_db()
+    cursor = db.execute(
+        """
+        UPDATE infrastructure
+        SET latitude = ?, longitude = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (latitude, longitude, item_id),
+    )
+    db.commit()
+    if cursor.rowcount == 0:
+        return _error("Data titik tidak ditemukan.", 404)
+    return jsonify({"ok": True, "message": "Koordinat titik berhasil diperbarui."})
+
+
 @app.route("/api/infra-links", methods=["GET"])
 @login_required
 def list_infra_links():
@@ -827,6 +895,7 @@ def list_infra_links():
             l.from_infra_id,
             l.to_infra_id,
             l.line_name,
+            l.route_geometry,
             l.created_at,
             f.name AS from_name,
             f.infra_type AS from_type,
@@ -842,7 +911,13 @@ def list_infra_links():
         ORDER BY l.id DESC
         """
     ).fetchall()
-    return jsonify({"ok": True, "data": [dict(r) for r in rows]})
+    data = []
+    for row in rows:
+        item = dict(row)
+        item["route_coordinates"] = get_route_coordinates(item)
+        item.pop("route_geometry", None)
+        data.append(item)
+    return jsonify({"ok": True, "data": data})
 
 
 @app.route("/api/infra-links", methods=["POST"])
@@ -903,6 +978,27 @@ def delete_infra_link(item_id: int):
         return _error("Data jalur tidak ditemukan.", 404)
 
     return jsonify({"ok": True, "message": "Jalur berhasil dihapus."})
+
+
+@app.route("/api/infra-links/<int:item_id>/geometry", methods=["PUT"])
+@login_required
+def update_infra_link_geometry(item_id: int):
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    try:
+        geometry = parse_route_geometry(payload.get("route_geometry"))
+    except ValueError as exc:
+        return _error(str(exc), 422)
+
+    db = get_db()
+    cursor = db.execute(
+        "UPDATE infra_links SET route_geometry = ? WHERE id = ?",
+        (json.dumps(geometry), item_id),
+    )
+    db.commit()
+    if cursor.rowcount == 0:
+        return _error("Data jalur tidak ditemukan.", 404)
+    return jsonify({"ok": True, "message": "Bentuk jalur berhasil diperbarui."})
 
 
 @app.route("/api/infra-links/<int:item_id>", methods=["PUT"])

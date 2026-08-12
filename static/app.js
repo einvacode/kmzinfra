@@ -23,6 +23,7 @@ const linkId = document.getElementById("linkId");
 const linkModeBadge = document.getElementById("linkModeBadge");
 const linkCount = document.getElementById("linkCount");
 const compactModeBtn = document.getElementById("compactModeBtn");
+const editPointsOnMapBtn = document.getElementById("editPointsOnMapBtn");
 
 const fieldId = document.getElementById("itemId");
 const fieldName = document.getElementById("name");
@@ -42,13 +43,23 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 const markerLayer = L.layerGroup().addTo(map);
 const userLocationLayer = L.layerGroup().addTo(map);
-const lineLayer = L.layerGroup().addTo(map);
+const lineLayer = new L.FeatureGroup().addTo(map);
+const routeEditControl = new L.Control.Draw({
+    edit: {
+        featureGroup: lineLayer,
+        edit: true,
+        remove: false
+    },
+    draw: false
+});
+map.addControl(routeEditControl);
 let cachedData = [];
 let allInfraData = [];
 let assetTypes = [];
 let infraTypes = [];
 let infraLinks = [];
 let isCompactMode = false;
+let isPointEditMode = false;
 
 function isLocalhostHost(hostname) {
     return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
@@ -105,6 +116,23 @@ function markerColor(infraType) {
     if (infraType === "ODP_FIBER_OPTIK") return "#e85d04";
     if (infraType === "CLOSURE") return "#1d4ed8";
     return "#475569";
+}
+
+function updatePointEditButton() {
+    if (!editPointsOnMapBtn) {
+        return;
+    }
+    editPointsOnMapBtn.textContent = `Edit Titik: ${isPointEditMode ? "On" : "Off"}`;
+}
+
+function infrastructureMarkerIcon(infraType) {
+    const color = markerColor(infraType);
+    return L.divIcon({
+        className: "infra-map-marker",
+        html: `<span style="background:${color}"></span>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+    });
 }
 
 function escapeHtml(text) {
@@ -265,14 +293,15 @@ function renderLinkLines() {
 
     infraLinks.forEach((link) => {
         const line = L.polyline(
-            [
+            link.route_coordinates || [
                 [link.from_latitude, link.from_longitude],
                 [link.to_latitude, link.to_longitude]
             ],
             {
                 color: "#0ea5e9",
                 weight: 3,
-                opacity: 0.85
+                opacity: 0.85,
+                linkId: link.id
             }
         ).addTo(lineLayer);
 
@@ -280,6 +309,36 @@ function renderLinkLines() {
         line.bindPopup(`<strong>${escapeHtml(title)}</strong><br>${escapeHtml(link.from_name)} -> ${escapeHtml(link.to_name)}`);
     });
 }
+
+async function saveRouteGeometry(linkIdValue, latLngs) {
+    const routeGeometry = latLngs.map((latLng) => [latLng.lat, latLng.lng]);
+    const response = await fetch(`/api/infra-links/${linkIdValue}/geometry`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ route_geometry: routeGeometry })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal menyimpan bentuk jalur.");
+    }
+}
+
+map.on(L.Draw.Event.EDITED, async (event) => {
+    try {
+        const saves = [];
+        event.layers.eachLayer((layer) => {
+            const linkIdValue = Number(layer.options.linkId);
+            if (linkIdValue) {
+                saves.push(saveRouteGeometry(linkIdValue, layer.getLatLngs()));
+            }
+        });
+        await Promise.all(saves);
+        await loadInfraLinks();
+    } catch (error) {
+        window.alert(error.message);
+        await loadInfraLinks();
+    }
+});
 
 function renderLinkList() {
     if (!linkListContainer) {
@@ -435,11 +494,9 @@ function renderMarkers(items) {
     markerLayer.clearLayers();
 
     items.forEach((item) => {
-        const marker = L.circleMarker([item.latitude, item.longitude], {
-            radius: 8,
-            color: markerColor(item.infra_type),
-            weight: 2,
-            fillOpacity: 0.82
+        const marker = L.marker([item.latitude, item.longitude], {
+            draggable: isPointEditMode,
+            icon: infrastructureMarkerIcon(item.infra_type)
         }).addTo(markerLayer);
 
         const popup = `
@@ -451,6 +508,18 @@ function renderMarkers(items) {
         `;
         marker.bindPopup(popup);
         marker.on("click", () => fillForm(item));
+        marker.on("dragend", async () => {
+            const latLng = marker.getLatLng();
+            try {
+                await updateInfrastructureCoordinates(item.id, latLng.lat, latLng.lng);
+                await loadAllInfraData();
+                await loadData();
+                await loadInfraLinks();
+            } catch (error) {
+                window.alert(error.message);
+                marker.setLatLng([item.latitude, item.longitude]);
+            }
+        });
     });
 }
 
@@ -576,6 +645,18 @@ async function saveData(event) {
     await loadAllInfraData();
     await loadData();
     await loadInfraLinks();
+}
+
+async function updateInfrastructureCoordinates(id, latitude, longitude) {
+    const response = await fetch(`/api/infra/${id}/coordinates`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude, longitude })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal memperbarui koordinat titik.");
+    }
 }
 
 async function addAssetType() {
@@ -998,6 +1079,14 @@ if (compactModeBtn) {
     });
 }
 
+if (editPointsOnMapBtn) {
+    editPointsOnMapBtn.addEventListener("click", () => {
+        isPointEditMode = !isPointEditMode;
+        updatePointEditButton();
+        renderMarkers(cachedData);
+    });
+}
+
 fieldType.addEventListener("change", () => {
     refreshAssetControls();
 });
@@ -1023,6 +1112,7 @@ gpsCenterBtn.addEventListener("click", () => {
     try {
         const compactModeSaved = window.localStorage.getItem("kmzinfra-compact-mode") === "1";
         applyCompactMode(compactModeSaved);
+        updatePointEditButton();
 
         if (!isGpsContextAllowed()) {
             window.setTimeout(() => {

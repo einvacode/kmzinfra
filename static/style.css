@@ -324,6 +324,20 @@ h2 {
     border: 1px solid var(--line);
 }
 
+.infra-map-marker {
+    background: transparent;
+    border: 0;
+}
+
+.infra-map-marker span {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.32);
+}
+
 label {
     display: block;
     margin: 10px 0 6px;

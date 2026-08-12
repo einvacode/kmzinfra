@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" crossorigin="">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="dashboard-page has-mobile-bottom-nav">
@@ -59,10 +60,11 @@
                     <select id="filterType">
                         <option value="">Semua Tipe</option>
                     </select>
+                    <button type="button" id="editPointsOnMapBtn" class="btn ghost">Edit Titik: Off</button>
                     <button type="button" id="exportKmzBtn" class="btn primary">Export KMZ Jalur</button>
                 </div>
             </div>
-            <p class="section-subtitle">Klik peta untuk isi koordinat, atau gunakan GPS untuk mengambil posisi perangkat.</p>
+            <p class="section-subtitle">Geser titik saat mode Edit Titik aktif. Gunakan ikon edit pada peta untuk membentuk jalur kabel mengikuti jalan, lalu simpan dari toolbar peta.</p>
             <div id="map"></div>
         </section>
 
@@ -183,6 +185,7 @@
     </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
     <script src="{{ url_for('static', filename='nav.js') }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
