@@ -151,6 +151,23 @@ function escapeHtml(text) {
         .replaceAll("'", "&#039;");
 }
 
+function actionIcon(action, label, id, extraClass = "") {
+    const icons = {
+        focus: "&#9673;",
+        "focus-link": "&#9673;",
+        edit: "&#9998;",
+        "edit-link": "&#9998;",
+        "edit-asset": "&#9998;",
+        "edit-infra": "&#9998;",
+        delete: "&#128465;",
+        "delete-link": "&#128465;",
+        "delete-asset": "&#128465;",
+        "delete-infra": "&#128465;"
+    };
+    const className = `icon-action ${extraClass}`.trim();
+    return `<button type="button" class="${className}" data-action="${action}" data-id="${id}" aria-label="${label}" title="${label}">${icons[action] || "&#8226;"}</button>`;
+}
+
 function renderSummary() {
     if (summaryInfraCount) {
         summaryInfraCount.textContent = String(allInfraData.length);
@@ -211,8 +228,8 @@ function renderInfraTypeList() {
                 <div class="asset-type-item">
                     <strong>${escapeHtml(item.infra_type)}</strong>
                     <div class="row-actions">
-                        <button type="button" data-action="edit-infra" data-id="${item.id}">Edit</button>
-                        <button type="button" data-action="delete-infra" data-id="${item.id}">Hapus</button>
+                        ${actionIcon("edit-infra", "Edit jenis infrastruktur", item.id)}
+                        ${actionIcon("delete-infra", "Hapus jenis infrastruktur", item.id, "danger")}
                     </div>
                 </div>
             `
@@ -266,8 +283,8 @@ function renderAssetTypeList() {
                 <div class="asset-type-item">
                     <strong>${escapeHtml(asset.asset_name)}</strong>
                     <div class="row-actions">
-                        <button type="button" data-action="edit-asset" data-id="${asset.id}">Edit</button>
-                        <button type="button" data-action="delete-asset" data-id="${asset.id}">Hapus</button>
+                        ${actionIcon("edit-asset", "Edit jenis aset", asset.id)}
+                        ${actionIcon("delete-asset", "Hapus jenis aset", asset.id, "danger")}
                     </div>
                 </div>
             `
@@ -403,9 +420,9 @@ function renderLinkList() {
                     <h3>${escapeHtml(title)}</h3>
                     <p class="meta">${escapeHtml(link.from_name)} (${escapeHtml(link.from_type)}) -> ${escapeHtml(link.to_name)} (${escapeHtml(link.to_type)})</p>
                     <div class="row-actions">
-                        <button type="button" data-action="focus-link" data-id="${link.id}">Lihat Jalur</button>
-                        <button type="button" data-action="edit-link" data-id="${link.id}">Edit Jalur</button>
-                        <button type="button" class="delete-route-btn" data-action="delete-link" data-id="${link.id}">Hapus Jalur</button>
+                        ${actionIcon("focus-link", "Lihat jalur pada peta", link.id)}
+                        ${actionIcon("edit-link", "Edit jalur", link.id)}
+                        ${actionIcon("delete-link", "Hapus jalur", link.id, "danger")}
                     </div>
                 </article>
             `;
@@ -579,9 +596,9 @@ function renderList(items) {
                     <p class="meta">${escapeHtml(item.infra_type)} | ${escapeHtml(item.asset_name || "-")} | ${escapeHtml(item.status || "-")}</p>
                     <p class="meta">${item.latitude}, ${item.longitude}</p>
                     <div class="row-actions">
-                        <button type="button" data-action="focus" data-id="${item.id}">Lihat</button>
-                        <button type="button" data-action="edit" data-id="${item.id}">Edit</button>
-                        <button type="button" class="delete-route-btn" data-action="delete" data-id="${item.id}">Hapus Titik</button>
+                        ${actionIcon("focus", "Lihat titik pada peta", item.id)}
+                        ${actionIcon("edit", "Edit titik", item.id)}
+                        ${actionIcon("delete", "Hapus titik", item.id, "danger")}
                     </div>
                 </article>
             `;

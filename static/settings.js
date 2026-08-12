@@ -102,7 +102,7 @@ function renderUserList() {
                     <h3>${escapeHtml(user.username)}</h3>
                     <p class="meta">User ID: ${user.id} | Dibuat: ${escapeHtml(user.created_at || "-")}</p>
                     <div class="row-actions">
-                        <button data-action="pick-user" data-id="${user.id}">Pilih</button>
+                        <button type="button" class="icon-action" data-action="pick-user" data-id="${user.id}" aria-label="Pilih akun" title="Pilih akun">&#9998;</button>
                     </div>
                 </article>
             `;
@@ -212,8 +212,8 @@ function renderFieldStaffList(items) {
                     <p class="meta">Login: ${item.has_password ? "Password sudah dibuat" : "Password belum dibuat"}</p>
                     <p class="meta">${escapeHtml(item.notes || "-")}</p>
                     <div class="row-actions">
-                        <button data-action="reset-staff-password" data-id="${item.id}">Ubah Password</button>
-                        <button data-action="delete-staff" data-id="${item.id}">Hapus</button>
+                        <button type="button" class="icon-action" data-action="reset-staff-password" data-id="${item.id}" aria-label="Ubah password" title="Ubah password">&#128274;</button>
+                        <button type="button" class="icon-action danger" data-action="delete-staff" data-id="${item.id}" aria-label="Hapus ID teknisi/operator" title="Hapus ID teknisi/operator">&#128465;</button>
                     </div>
                 </article>
             `;

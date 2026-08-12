@@ -669,6 +669,33 @@ textarea:focus {
     padding: 8px;
 }
 
+.icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.icon-action:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+}
+
+.icon-action.danger {
+    color: #b42318;
+    border-color: #f1c8c2;
+    background: #fff5f4;
+}
+
 .delete-route-btn {
     color: #b42318;
     border-color: #f1c8c2;
