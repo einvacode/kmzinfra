@@ -886,10 +886,14 @@ def update_infra(item_id: int):
 
 
 @app.route("/api/infra/<int:item_id>", methods=["DELETE"])
-@login_required
+@admin_required
 def delete_infra(item_id: int):
     init_db()
     db = get_db()
+    linked_routes = db.execute(
+        "SELECT COUNT(1) AS total FROM infra_links WHERE from_infra_id = ? OR to_infra_id = ?",
+        (item_id, item_id),
+    ).fetchone()["total"]
     db.execute("DELETE FROM infra_links WHERE from_infra_id = ? OR to_infra_id = ?", (item_id, item_id))
     cursor = db.execute("DELETE FROM infrastructure WHERE id = ?", (item_id,))
     db.commit()
@@ -897,7 +901,13 @@ def delete_infra(item_id: int):
     if cursor.rowcount == 0:
         return _error("Data tidak ditemukan.", 404)
 
-    return jsonify({"ok": True, "message": "Data berhasil dihapus."})
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Titik berhasil dihapus.",
+            "deleted_link_count": linked_routes,
+        }
+    )
 
 
 @app.route("/api/infra/<int:item_id>/coordinates", methods=["PUT"])

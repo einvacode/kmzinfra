@@ -560,9 +560,9 @@ function renderList(items) {
                     <p class="meta">${escapeHtml(item.infra_type)} | ${escapeHtml(item.asset_name || "-")} | ${escapeHtml(item.status || "-")}</p>
                     <p class="meta">${item.latitude}, ${item.longitude}</p>
                     <div class="row-actions">
-                        <button data-action="focus" data-id="${item.id}">Lihat</button>
-                        <button data-action="edit" data-id="${item.id}">Edit</button>
-                        <button data-action="delete" data-id="${item.id}">Hapus</button>
+                        <button type="button" data-action="focus" data-id="${item.id}">Lihat</button>
+                        <button type="button" data-action="edit" data-id="${item.id}">Edit</button>
+                        <button type="button" class="delete-route-btn" data-action="delete" data-id="${item.id}">Hapus Titik</button>
                     </div>
                 </article>
             `;
@@ -860,7 +860,7 @@ async function removeInfraLink(id) {
 
 async function deleteData(id) {
     const response = await fetch(`/api/infra/${id}`, { method: "DELETE" });
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
 
     if (!response.ok || !result.ok) {
         throw new Error(result.message || "Gagal menghapus data.");
@@ -873,6 +873,7 @@ async function deleteData(id) {
     await loadAllInfraData();
     await loadData();
     await loadInfraLinks();
+    return Number(result.deleted_link_count || 0);
 }
 
 listContainer.addEventListener("click", async (event) => {
@@ -906,9 +907,19 @@ listContainer.addEventListener("click", async (event) => {
         }
 
         if (action === "delete") {
-            const yes = window.confirm(`Hapus titik ${item.name}?`);
+            const connectedRoutes = infraLinks.filter(
+                (link) => link.from_infra_id === id || link.to_infra_id === id
+            ).length;
+            const routeWarning = connectedRoutes
+                ? ` ${connectedRoutes} jalur yang terhubung juga akan dihapus.`
+                : "";
+            const yes = window.confirm(`Hapus titik ${item.name}?${routeWarning} Tindakan ini tidak dapat dibatalkan.`);
             if (yes) {
-                await deleteData(id);
+                const deletedRoutes = await deleteData(id);
+                const resultText = deletedRoutes
+                    ? `Titik dan ${deletedRoutes} jalur terkait berhasil dihapus.`
+                    : "Titik berhasil dihapus.";
+                window.alert(resultText);
             }
         }
     } catch (error) {
