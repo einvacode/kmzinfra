@@ -24,6 +24,10 @@ const linkModeBadge = document.getElementById("linkModeBadge");
 const linkCount = document.getElementById("linkCount");
 const compactModeBtn = document.getElementById("compactModeBtn");
 const editPointsOnMapBtn = document.getElementById("editPointsOnMapBtn");
+const summaryInfraCount = document.getElementById("summaryInfraCount");
+const summaryAssetCount = document.getElementById("summaryAssetCount");
+const summaryTypeCount = document.getElementById("summaryTypeCount");
+const summaryRouteCount = document.getElementById("summaryRouteCount");
 
 const fieldId = document.getElementById("itemId");
 const fieldName = document.getElementById("name");
@@ -34,6 +38,7 @@ const fieldLng = document.getElementById("longitude");
 const fieldAddress = document.getElementById("address");
 const fieldNotes = document.getElementById("notes");
 const fieldStatus = document.getElementById("status");
+const isFieldStaff = document.body.dataset.fieldStaff === "1";
 
 const map = L.map("map").setView([-2.5, 118], 5);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -52,7 +57,9 @@ const routeEditControl = new L.Control.Draw({
     },
     draw: false
 });
-map.addControl(routeEditControl);
+if (!isFieldStaff) {
+    map.addControl(routeEditControl);
+}
 let cachedData = [];
 let allInfraData = [];
 let assetTypes = [];
@@ -142,6 +149,21 @@ function escapeHtml(text) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+}
+
+function renderSummary() {
+    if (summaryInfraCount) {
+        summaryInfraCount.textContent = String(allInfraData.length);
+    }
+    if (summaryAssetCount) {
+        summaryAssetCount.textContent = String(assetTypes.length);
+    }
+    if (summaryTypeCount) {
+        summaryTypeCount.textContent = String(infraTypes.length);
+    }
+    if (summaryRouteCount) {
+        summaryRouteCount.textContent = String(infraLinks.length);
+    }
 }
 
 function resetForm() {
@@ -558,6 +580,7 @@ async function loadAssetTypes() {
 
     assetTypes = result.data;
     refreshAssetControls(fieldAssetName.value || "");
+    renderSummary();
 }
 
 async function loadInfraTypes() {
@@ -570,6 +593,7 @@ async function loadInfraTypes() {
     infraTypes = result.data;
     renderInfraTypeOptions();
     renderInfraTypeList();
+    renderSummary();
 }
 
 async function loadAllInfraData() {
@@ -582,6 +606,7 @@ async function loadAllInfraData() {
 
     allInfraData = result.data;
     renderLinkPointOptions();
+    renderSummary();
 }
 
 async function loadInfraLinks() {
@@ -594,6 +619,7 @@ async function loadInfraLinks() {
     infraLinks = result.data;
     renderLinkLines();
     renderLinkList();
+    renderSummary();
 }
 
 async function loadData() {

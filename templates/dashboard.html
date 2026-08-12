@@ -11,21 +11,24 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" crossorigin="">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="dashboard-page has-mobile-bottom-nav">
+<body class="dashboard-page has-mobile-bottom-nav {{ 'map-routes-page' if map_mode else 'summary-dashboard-page' }} {{ 'field-staff-page' if is_field_staff else 'admin-page' }}" data-field-staff="{{ '1' if is_field_staff else '0' }}">
     <div class="ambient-shape"></div>
 
     <header class="topbar">
         <div class="brand-wrap">
             <strong>{{ settings.company_name }}</strong>
-            <span class="muted">Halo, {{ username }}</span>
+            <span class="muted">Halo, {{ username }}{% if is_field_staff %} ({{ staff_role }}){% endif %}</span>
             <button type="button" class="menu-toggle" data-target="mainMenu" aria-label="Toggle Menu">Menu</button>
         </div>
         <nav class="menu-bar" id="mainMenu">
-            <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
+            <a href="{{ url_for('dashboard') }}" class="{{ '' if map_mode else 'active' }}">Dashboard</a>
+            <a href="{{ url_for('map_routes_page') }}" class="{{ 'active' if map_mode else '' }}">Peta & Jalur</a>
+            {% if not is_field_staff %}
             <a href="{{ url_for('backup_page') }}">Backup Restore</a>
             <a href="{{ url_for('settings_page') }}">Pengaturan</a>
             <a href="{{ url_for('admin_account_page') }}">Admin</a>
             <a href="{{ url_for('landing_page') }}" target="_blank" rel="noreferrer">Lihat Landing</a>
+            {% endif %}
             <form action="{{ url_for('logout') }}" method="post" class="inline-form">
                 <button type="submit" class="mini-link danger">Logout</button>
             </form>
@@ -33,15 +36,17 @@
     </header>
 
     <nav class="bottom-nav" aria-label="Navigasi Mobile">
-        <a href="{{ url_for('dashboard') }}" class="active"><span class="nav-icon">DB</span><span class="nav-label">Dashboard</span></a>
-        <a href="{{ url_for('backup_page') }}"><span class="nav-icon">BK</span><span class="nav-label">Backup</span></a>
+        <a href="{{ url_for('dashboard') }}" class="{{ '' if map_mode else 'active' }}"><span class="nav-icon">DB</span><span class="nav-label">Dashboard</span></a>
+        <a href="{{ url_for('map_routes_page') }}" class="{{ 'active' if map_mode else '' }}"><span class="nav-icon">MP</span><span class="nav-label">Peta</span></a>
+        {% if not is_field_staff %}
         <a href="{{ url_for('settings_page') }}"><span class="nav-icon">ST</span><span class="nav-label">Pengaturan</span></a>
         <a href="{{ url_for('admin_account_page') }}"><span class="nav-icon">AD</span><span class="nav-label">Admin</span></a>
+        {% endif %}
     </nav>
 
     <header class="hero">
-        <h1>GeoFiber Infra Board</h1>
-        <p>Pemetaan koordinat infrastruktur TIANG, ODP Fiber Optik, CLOSURE, dan tipe custom berbasis SQLite.</p>
+        <h1>{{ 'Peta & Jalur Kabel' if map_mode else ('Input Lapangan' if is_field_staff else 'Dashboard Infrastruktur') }}</h1>
+        <p>{{ 'Lihat titik dan jalur kabel yang telah tercatat.' if is_field_staff and map_mode else ('Catat titik infrastruktur baru dari lokasi kerja.' if is_field_staff else ('Kelola peta titik, garis rute kabel, dan bentuk jalur mengikuti jalan.' if map_mode else 'Input titik infrastruktur dan pantau ringkasan aset serta infrastruktur.')) }}</p>
         <div class="hero-note-strip">
             <span>Operasional Lapangan</span>
             <span>Data Real-time</span>
@@ -60,7 +65,7 @@
                     <select id="filterType">
                         <option value="">Semua Tipe</option>
                     </select>
-                    <button type="button" id="editPointsOnMapBtn" class="btn ghost">Edit Titik: Off</button>
+                    {% if not is_field_staff %}<button type="button" id="editPointsOnMapBtn" class="btn ghost">Edit Titik: Off</button>{% endif %}
                     <button type="button" id="exportKmzBtn" class="btn primary">Export KMZ Jalur</button>
                 </div>
             </div>
@@ -69,6 +74,18 @@
         </section>
 
         <div class="stack-col">
+            <section class="panel summary-panel">
+                <div class="panel-header">
+                    <h2>Ringkasan Infrastruktur</h2>
+                    <a href="{{ url_for('map_routes_page') }}" class="btn ghost link-btn">Buka Peta & Jalur</a>
+                </div>
+                <div class="summary-grid">
+                    <article class="summary-item"><strong id="summaryInfraCount">0</strong><span>Total Infrastruktur</span></article>
+                    <article class="summary-item"><strong id="summaryAssetCount">0</strong><span>Jenis Aset</span></article>
+                    <article class="summary-item"><strong id="summaryTypeCount">0</strong><span>Jenis Infrastruktur</span></article>
+                    <article class="summary-item"><strong id="summaryRouteCount">0</strong><span>Jalur Kabel</span></article>
+                </div>
+            </section>
             <section class="panel form-panel">
                 <div class="panel-header">
                     <h2>Input Titik</h2>

@@ -186,14 +186,16 @@ def init_db() -> None:
         """
     )
 
-    for infra_type in DEFAULT_INFRA_TYPES:
-        db.execute(
-            """
-            INSERT OR IGNORE INTO infra_types (infra_type)
-            VALUES (?)
-            """,
-            (infra_type,),
-        )
+    infra_type_count = db.execute("SELECT COUNT(1) AS total FROM infra_types").fetchone()["total"]
+    if infra_type_count == 0:
+        for infra_type in DEFAULT_INFRA_TYPES:
+            db.execute(
+                """
+                INSERT INTO infra_types (infra_type)
+                VALUES (?)
+                """,
+                (infra_type,),
+            )
 
     db.execute(
         """
@@ -267,15 +269,17 @@ def init_db() -> None:
     # Pastikan data lama yang null/blank mendapat nilai default.
     db.execute("UPDATE infrastructure SET asset_name = 'UMUM' WHERE asset_name IS NULL OR TRIM(asset_name) = ''")
 
-    for infra_type, assets in DEFAULT_ASSETS.items():
-        for asset_name in assets:
-            db.execute(
-                """
-                INSERT OR IGNORE INTO asset_types (infra_type, asset_name)
-                VALUES (?, ?)
-                """,
-                (infra_type, asset_name),
-            )
+    asset_type_count = db.execute("SELECT COUNT(1) AS total FROM asset_types").fetchone()["total"]
+    if asset_type_count == 0:
+        for infra_type, assets in DEFAULT_ASSETS.items():
+            for asset_name in assets:
+                db.execute(
+                    """
+                    INSERT INTO asset_types (infra_type, asset_name)
+                    VALUES (?, ?)
+                    """,
+                    (infra_type, asset_name),
+                )
 
     db.commit()
 
@@ -366,6 +370,26 @@ def login_required(fn):
             if not request.path.startswith("/api/") and not is_allowed_path:
                 return redirect(url_for("admin_account_page", forced="1"))
 
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def is_field_staff_session() -> bool:
+    return session.get("auth_source") == "field_staff"
+
+
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            if request.path.startswith("/api/"):
+                return _error("Sesi login tidak valid. Silakan login ulang.", 401)
+            return redirect(url_for("login", next=request.path))
+        if is_field_staff_session():
+            if request.path.startswith("/api/"):
+                return _error("Menu ini hanya dapat diakses oleh admin.", 403)
+            return redirect(url_for("dashboard"))
         return fn(*args, **kwargs)
 
     return wrapper
@@ -706,11 +730,33 @@ def logout():
 def dashboard():
     settings = get_site_settings()
     username = session.get("display_name") or session.get("username", "admin")
-    return render_template("dashboard.html", settings=settings, username=username)
+    return render_template(
+        "dashboard.html",
+        settings=settings,
+        username=username,
+        map_mode=False,
+        is_field_staff=is_field_staff_session(),
+        staff_role=session.get("staff_role", ""),
+    )
+
+
+@app.route("/map-routes")
+@login_required
+def map_routes_page():
+    settings = get_site_settings()
+    username = session.get("display_name") or session.get("username", "admin")
+    return render_template(
+        "dashboard.html",
+        settings=settings,
+        username=username,
+        map_mode=True,
+        is_field_staff=is_field_staff_session(),
+        staff_role=session.get("staff_role", ""),
+    )
 
 
 @app.route("/settings")
-@login_required
+@admin_required
 def settings_page():
     settings = get_site_settings()
     username = session.get("display_name") or session.get("username", "admin")
@@ -718,7 +764,7 @@ def settings_page():
 
 
 @app.route("/admin-account")
-@login_required
+@admin_required
 def admin_account_page():
     settings = get_site_settings()
     forced_password_change = request.args.get("forced") == "1" or bool(session.get("force_password_change"))
@@ -732,7 +778,7 @@ def admin_account_page():
 
 
 @app.route("/backup")
-@login_required
+@admin_required
 def backup_page():
     settings = get_site_settings()
     username = session.get("display_name") or session.get("username", "admin")
@@ -855,7 +901,7 @@ def delete_infra(item_id: int):
 
 
 @app.route("/api/infra/<int:item_id>/coordinates", methods=["PUT"])
-@login_required
+@admin_required
 def update_infra_coordinates(item_id: int):
     init_db()
     payload = request.get_json(silent=True) or {}
@@ -921,7 +967,7 @@ def list_infra_links():
 
 
 @app.route("/api/infra-links", methods=["POST"])
-@login_required
+@admin_required
 def create_infra_link():
     init_db()
     payload = request.get_json(silent=True) or {}
@@ -967,7 +1013,7 @@ def create_infra_link():
 
 
 @app.route("/api/infra-links/<int:item_id>", methods=["DELETE"])
-@login_required
+@admin_required
 def delete_infra_link(item_id: int):
     init_db()
     db = get_db()
@@ -981,7 +1027,7 @@ def delete_infra_link(item_id: int):
 
 
 @app.route("/api/infra-links/<int:item_id>/geometry", methods=["PUT"])
-@login_required
+@admin_required
 def update_infra_link_geometry(item_id: int):
     init_db()
     payload = request.get_json(silent=True) or {}
@@ -1002,7 +1048,7 @@ def update_infra_link_geometry(item_id: int):
 
 
 @app.route("/api/infra-links/<int:item_id>", methods=["PUT"])
-@login_required
+@admin_required
 def update_infra_link(item_id: int):
     init_db()
     payload = request.get_json(silent=True) or {}
