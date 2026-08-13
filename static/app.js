@@ -24,6 +24,7 @@ const linkModeBadge = document.getElementById("linkModeBadge");
 const linkCount = document.getElementById("linkCount");
 const compactModeBtn = document.getElementById("compactModeBtn");
 const editPointsOnMapBtn = document.getElementById("editPointsOnMapBtn");
+const editRouteGeometryBtn = document.getElementById("editRouteGeometryBtn");
 const closeFormPanelBtn = document.getElementById("closeFormPanelBtn");
 const formPanel = document.querySelector(".form-panel");
 const formPanelBackdrop = document.getElementById("formPanelBackdrop");
@@ -60,13 +61,16 @@ const routeEditControl = new L.Control.Draw({
     },
     draw: false
 });
-map.addControl(routeEditControl);let cachedData = [];
+map.addControl(routeEditControl);
+
+let cachedData = [];
 let allInfraData = [];
 let assetTypes = [];
 let infraTypes = [];
 let infraLinks = [];
 let isCompactMode = false;
 let isPointEditMode = false;
+let isRouteGeometryEditMode = false;
 
 function isMapRoutesPage() {
     return document.body.classList.contains("map-routes-page");
@@ -156,6 +160,28 @@ function updatePointEditButton() {
         return;
     }
     editPointsOnMapBtn.textContent = `Edit Titik: ${isPointEditMode ? "On" : "Off"}`;
+}
+
+function updateRouteGeometryEditButton() {
+    if (!editRouteGeometryBtn) {
+        return;
+    }
+    editRouteGeometryBtn.textContent = `Edit Bentuk Jalur: ${isRouteGeometryEditMode ? "On" : "Off"}`;
+
+    const editToolbar = routeEditControl?._toolbars?.edit;
+    if (!editToolbar) {
+        return;
+    }
+
+    if (isRouteGeometryEditMode) {
+        editToolbar.enable();
+        return;
+    }
+
+    editToolbar.disable();
+    if (editToolbar._activeMode) {
+        editToolbar._activeMode.handler.disable();
+    }
 }
 
 function infrastructureMarkerIcon(infraType) {
@@ -1237,6 +1263,13 @@ if (editPointsOnMapBtn) {
     });
 }
 
+if (editRouteGeometryBtn) {
+    editRouteGeometryBtn.addEventListener("click", () => {
+        isRouteGeometryEditMode = !isRouteGeometryEditMode;
+        updateRouteGeometryEditButton();
+    });
+}
+
 if (closeFormPanelBtn) {
     closeFormPanelBtn.addEventListener("click", () => {
         resetForm();
@@ -1278,6 +1311,7 @@ gpsCenterBtn.addEventListener("click", () => {
         const compactModeSaved = window.localStorage.getItem("kmzinfra-compact-mode") === "1";
         applyCompactMode(compactModeSaved);
         updatePointEditButton();
+        updateRouteGeometryEditButton();
 
         if (!isGpsContextAllowed()) {
             window.setTimeout(() => {
