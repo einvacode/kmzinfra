@@ -445,7 +445,8 @@ function renderLinkPointOptions() {
         return;
     }
 
-    const optionHtml = allInfraData
+    const sortedInfraData = [...allInfraData].sort((a, b) => compareAlphabetically(a.name, b.name));
+    const optionHtml = sortedInfraData
         .map((item) => {
             const label = `${escapeHtml(item.name)} | ${escapeHtml(item.infra_type)} | ${escapeHtml(item.asset_name || "-")}`;
             return `<option value="${item.id}">${label}</option>`;
@@ -701,7 +702,11 @@ function renderLinkList() {
         return;
     }
 
-    const links = filteredLinks();
+    const links = [...filteredLinks()].sort((a, b) => {
+        const left = (a.line_name || `${a.from_name} -> ${a.to_name}`).trim();
+        const right = (b.line_name || `${b.from_name} -> ${b.to_name}`).trim();
+        return compareAlphabetically(left, right);
+    });
     if (linkCount) {
         linkCount.textContent = `${links.length} jalur`;
     }
@@ -850,10 +855,16 @@ function fillForm(item) {
     modeBadge.textContent = "Mode: Edit";
 }
 
+function compareAlphabetically(a, b) {
+    return String(a).localeCompare(String(b), undefined, { sensitivity: "base" });
+}
+
 function renderMarkers(items) {
     markerLayer.clearLayers();
 
-    items.forEach((item) => {
+    [...items]
+        .sort((a, b) => compareAlphabetically(a.name, b.name))
+        .forEach((item) => {
         const marker = L.marker([item.latitude, item.longitude], {
             draggable: isPointEditMode,
             icon: infrastructureMarkerIcon(item.infra_type)
@@ -913,13 +924,14 @@ function renderMarkers(items) {
 }
 
 function renderList(items) {
-    itemCount.textContent = `${items.length} data`;
-    if (items.length === 0) {
+    const sortedItems = [...items].sort((a, b) => compareAlphabetically(a.name, b.name));
+    itemCount.textContent = `${sortedItems.length} data`;
+    if (sortedItems.length === 0) {
         listContainer.innerHTML = '<p class="muted">Belum ada data titik infrastruktur.</p>';
         return;
     }
 
-    listContainer.innerHTML = items
+    listContainer.innerHTML = sortedItems
         .map((item) => {
             return `
                 <article class="list-item">

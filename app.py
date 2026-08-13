@@ -798,7 +798,7 @@ def list_infra():
             SELECT id, name, infra_type, asset_name, latitude, longitude, address, notes, status, created_at, updated_at
             FROM infrastructure
             WHERE infra_type = ?
-            ORDER BY id DESC
+            ORDER BY LOWER(name) ASC, name ASC, id ASC
             """,
             (selected_type,),
         ).fetchall()
@@ -807,7 +807,7 @@ def list_infra():
             """
             SELECT id, name, infra_type, asset_name, latitude, longitude, address, notes, status, created_at, updated_at
             FROM infrastructure
-            ORDER BY id DESC
+            ORDER BY LOWER(name) ASC, name ASC, id ASC
             """
         ).fetchall()
 
@@ -964,7 +964,7 @@ def list_infra_links():
         FROM infra_links l
         JOIN infrastructure f ON f.id = l.from_infra_id
         JOIN infrastructure t ON t.id = l.to_infra_id
-        ORDER BY l.id DESC
+        ORDER BY LOWER(COALESCE(l.line_name, '')), LOWER(f.name), LOWER(t.name), l.id ASC
         """
     ).fetchall()
     data = []
