@@ -74,6 +74,7 @@ let isPointEditMode = false;
 let isRouteGeometryEditMode = false;
 let activeRouteLineDrag = null;
 let selectedRouteLineId = null;
+const hiddenRouteIds = new Set();
 
 function isMapRoutesPage() {
     return document.body.classList.contains("map-routes-page");
@@ -647,51 +648,77 @@ function finishRouteLineDrag() {
         });
 }
 
+function isRouteVisible(linkId) {
+    return !hiddenRouteIds.has(Number(linkId));
+}
+
+function toggleRouteVisibility(linkId, visible) {
+    const routeId = Number(linkId);
+    if (!Number.isFinite(routeId)) {
+        return;
+    }
+
+    if (visible) {
+        hiddenRouteIds.delete(routeId);
+    } else {
+        hiddenRouteIds.add(routeId);
+    }
+
+    if (selectedRouteLineId === routeId && !visible) {
+        selectedRouteLineId = null;
+    }
+
+    renderLinkLines();
+    renderLinkList();
+}
+
 function renderLinkLines() {
     lineLayer.clearLayers();
     clearRouteVertexMarkers();
 
-    filteredLinks().forEach((link) => {
-        const line = L.polyline(
-            link.route_coordinates || [
-                [link.from_latitude, link.from_longitude],
-                [link.to_latitude, link.to_longitude]
-            ],
-            {
-                color: "#0ea5e9",
-                weight: 3,
-                opacity: 0.85,
-                linkId: link.id
-            }
-        ).addTo(lineLayer);
+    filteredLinks()
+        .filter((link) => isRouteVisible(link.id))
+        .forEach((link) => {
+            const line = L.polyline(
+                link.route_coordinates || [
+                    [link.from_latitude, link.from_longitude],
+                    [link.to_latitude, link.to_longitude]
+                ],
+                {
+                    color: "#0ea5e9",
+                    weight: 3,
+                    opacity: 0.85,
+                    linkId: link.id
+                }
+            ).addTo(lineLayer);
 
-        const title = link.line_name || `${link.from_name} -> ${link.to_name}`;
-        line.bindPopup(`<strong>${escapeHtml(title)}</strong><br>${escapeHtml(link.from_name)} -> ${escapeHtml(link.to_name)}`);
+            const title = link.line_name || `${link.from_name} -> ${link.to_name}`;
+            line.bindPopup(`<strong>${escapeHtml(title)}</strong><br>${escapeHtml(link.from_name)} -> ${escapeHtml(link.to_name)}`);
 
-        line.on("mousedown", (event) => {
-            if (!isRouteGeometryEditMode) {
-                return;
+            line.on("mousedown", (event) => {
+                if (!isRouteGeometryEditMode) {
+                    return;
+                }
+                selectedRouteLineId = link.id;
+                event.originalEvent.preventDefault();
+                event.originalEvent.stopPropagation();
+                startRouteLineDrag(line, event.latlng);
+                syncRouteVertexMarkers(link.id, line);
+            });
+
+            line.on("dblclick", (event) => {
+                if (!isRouteGeometryEditMode) {
+                    return;
+                }
+                selectedRouteLineId = link.id;
+                addRouteVertexAtClick(link.id, line, event);
+                syncRouteVertexMarkers(link.id, line);
+            });
+
+            if (isRouteGeometryEditMode && Number(selectedRouteLineId) === Number(link.id)) {
+                syncRouteVertexMarkers(link.id, line);
             }
-            selectedRouteLineId = link.id;
-            event.originalEvent.preventDefault();
-            event.originalEvent.stopPropagation();
-            startRouteLineDrag(line, event.latlng);
-            syncRouteVertexMarkers(link.id, line);
         });
-
-        line.on("dblclick", (event) => {
-            if (!isRouteGeometryEditMode) {
-                return;
-            }
-            selectedRouteLineId = link.id;
-            addRouteVertexAtClick(link.id, line, event);
-            syncRouteVertexMarkers(link.id, line);
-        });
-
-        if (isRouteGeometryEditMode && Number(selectedRouteLineId) === Number(link.id)) {
-            syncRouteVertexMarkers(link.id, line);
-        }
-    });
 }
 
 async function saveRouteGeometry(linkIdValue, latLngs) {
@@ -749,8 +776,15 @@ function renderLinkList() {
     linkListContainer.innerHTML = links
         .map((link) => {
             const title = link.line_name || `${link.from_name} -> ${link.to_name}`;
+            const isVisible = isRouteVisible(link.id);
             return `
-                <article class="list-item">
+                <article class="list-item ${isVisible ? "" : "route-hidden"}">
+                    <div class="route-toggle-row">
+                        <label class="route-toggle-label">
+                            <input type="checkbox" data-route-toggle="${link.id}" ${isVisible ? "checked" : ""}>
+                            <span>${isVisible ? "Tampil" : "Sembunyi"}</span>
+                        </label>
+                    </div>
                     <h3>${escapeHtml(title)}</h3>
                     <p class="meta">${escapeHtml(link.from_name)} (${escapeHtml(link.from_type)}) -> ${escapeHtml(link.to_name)} (${escapeHtml(link.to_type)})</p>
                     <div class="row-actions">
@@ -1332,6 +1366,21 @@ listContainer.addEventListener("click", async (event) => {
         window.alert(error.message);
     }
 });
+
+if (linkListContainer) {
+    linkListContainer.addEventListener("change", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) {
+            return;
+        }
+
+        if (!target.dataset.routeToggle) {
+            return;
+        }
+
+        toggleRouteVisibility(target.dataset.routeToggle, target.checked);
+    });
+}
 
 form.addEventListener("submit", async (event) => {
     try {

@@ -685,6 +685,33 @@ textarea:focus {
     overflow-x: hidden;
 }
 
+.route-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.route-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #334155;
+    user-select: none;
+}
+
+.route-toggle-label input {
+    width: auto;
+    margin: 0;
+}
+
+.route-hidden {
+    opacity: 0.6;
+    background: #f8fafc;
+    border-color: #dfe7f0;
+}
+
 #backupInfo {
     margin-top: 10px;
 }
