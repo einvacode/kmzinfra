@@ -680,8 +680,9 @@ textarea:focus {
 }
 
 .route-list {
-    max-height: none;
-    overflow: visible;
+    max-height: 340px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 #backupInfo {
