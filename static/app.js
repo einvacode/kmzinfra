@@ -60,10 +60,7 @@ const routeEditControl = new L.Control.Draw({
     },
     draw: false
 });
-if (!isFieldStaff) {
-    map.addControl(routeEditControl);
-}
-let cachedData = [];
+map.addControl(routeEditControl);let cachedData = [];
 let allInfraData = [];
 let assetTypes = [];
 let infraTypes = [];

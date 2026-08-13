@@ -977,7 +977,7 @@ def list_infra_links():
 
 
 @app.route("/api/infra-links", methods=["POST"])
-@admin_required
+@login_required
 def create_infra_link():
     init_db()
     payload = request.get_json(silent=True) or {}
@@ -1023,7 +1023,7 @@ def create_infra_link():
 
 
 @app.route("/api/infra-links/<int:item_id>", methods=["DELETE"])
-@admin_required
+@login_required
 def delete_infra_link(item_id: int):
     init_db()
     db = get_db()
@@ -1037,7 +1037,7 @@ def delete_infra_link(item_id: int):
 
 
 @app.route("/api/infra-links/<int:item_id>/geometry", methods=["PUT"])
-@admin_required
+@login_required
 def update_infra_link_geometry(item_id: int):
     init_db()
     payload = request.get_json(silent=True) or {}
@@ -1058,7 +1058,7 @@ def update_infra_link_geometry(item_id: int):
 
 
 @app.route("/api/infra-links/<int:item_id>", methods=["PUT"])
-@admin_required
+@login_required
 def update_infra_link(item_id: int):
     init_db()
     payload = request.get_json(silent=True) or {}
