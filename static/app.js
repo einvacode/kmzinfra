@@ -174,10 +174,22 @@ function updateRouteGeometryEditButton() {
     }
 
     if (isRouteGeometryEditMode) {
+        map.dragging.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        map.touchZoom.disable();
         editToolbar.enable();
         return;
     }
 
+    map.dragging.enable();
+    map.doubleClickZoom.enable();
+    map.scrollWheelZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+    map.touchZoom.enable();
     editToolbar.disable();
     if (editToolbar._activeMode) {
         editToolbar._activeMode.handler.disable();
