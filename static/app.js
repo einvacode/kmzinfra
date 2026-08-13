@@ -508,6 +508,15 @@ function getClosestPolylineSegmentIndex(points, targetLatLng) {
     return closestIndex;
 }
 
+function routeVertexIcon() {
+    return L.divIcon({
+        className: "route-vertex-marker",
+        html: '<span style="display:block;width:14px;height:14px;border-radius:50%;background:#f97316;border:2px solid #fff;box-shadow:0 0 0 2px rgba(249,115,22,0.18);"></span>',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+    });
+}
+
 function syncRouteVertexMarkers(linkIdValue, line) {
     if (!isRouteGeometryEditMode) {
         clearRouteVertexMarkers();
@@ -528,19 +537,20 @@ function syncRouteVertexMarkers(linkIdValue, line) {
     clearRouteVertexMarkers();
 
     latLngs.forEach((latLng, index) => {
-        const marker = L.circleMarker(latLng, {
-            radius: 6,
-            color: "#f97316",
-            weight: 2,
-            fillColor: "#fff7ed",
-            fillOpacity: 1,
-            opacity: 1,
+        const marker = L.marker(latLng, {
             draggable: true,
-            linkId: linkIdValue,
-            vertexIndex: index
+            icon: routeVertexIcon(),
+            keyboard: false,
+            title: `Vertex ${index + 1}`
         }).addTo(routeVertexLayer);
 
         marker.on("mousedown", (event) => {
+            if (event && event.originalEvent) {
+                event.originalEvent.stopPropagation();
+            }
+        });
+
+        marker.on("dragstart", (event) => {
             if (event && event.originalEvent) {
                 event.originalEvent.stopPropagation();
             }
