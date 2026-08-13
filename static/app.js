@@ -162,13 +162,31 @@ function updatePointEditButton() {
     editPointsOnMapBtn.textContent = `Edit Titik: ${isPointEditMode ? "On" : "Off"}`;
 }
 
+function disableMapInteractions() {
+    map.dragging.disable();
+    map.doubleClickZoom.disable();
+    map.scrollWheelZoom.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+    map.touchZoom.disable();
+}
+
+function enableMapInteractions() {
+    map.dragging.enable();
+    map.doubleClickZoom.enable();
+    map.scrollWheelZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+    map.touchZoom.enable();
+}
+
 function updateRouteGeometryEditButton() {
     if (!editRouteGeometryBtn) {
         return;
     }
     editRouteGeometryBtn.textContent = `Edit Bentuk Jalur: ${isRouteGeometryEditMode ? "On" : "Off"}`;
     editRouteGeometryBtn.title = isRouteGeometryEditMode
-        ? "Klik jalur lalu tarik titik/vertex untuk menyesuaikan bentuk garis."
+        ? "Klik dan tahan jalur untuk menggeser seluruh garis, atau double klik untuk menambah titik vertex."
         : "Aktifkan mode edit jalur.";
 
     const editToolbar = routeEditControl?._toolbars?.edit;
@@ -177,22 +195,12 @@ function updateRouteGeometryEditButton() {
     }
 
     if (isRouteGeometryEditMode) {
-        map.dragging.disable();
-        map.doubleClickZoom.disable();
-        map.scrollWheelZoom.disable();
-        map.boxZoom.disable();
-        map.keyboard.disable();
-        map.touchZoom.disable();
+        disableMapInteractions();
         editToolbar.enable();
         return;
     }
 
-    map.dragging.enable();
-    map.doubleClickZoom.enable();
-    map.scrollWheelZoom.enable();
-    map.boxZoom.enable();
-    map.keyboard.enable();
-    map.touchZoom.enable();
+    enableMapInteractions();
     editToolbar.disable();
     if (editToolbar._activeMode) {
         editToolbar._activeMode.handler.disable();
@@ -425,6 +433,40 @@ function renderLinkPointOptions() {
     linkToId.value = hasPrevTo ? previousTo : String(allInfraData[Math.min(1, allInfraData.length - 1)].id);
 }
 
+function getClosestPolylineSegmentIndex(points, targetLatLng) {
+    let bestIndex = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (let index = 0; index < points.length - 1; index += 1) {
+        const start = points[index];
+        const end = points[index + 1];
+        const dx = end.lng - start.lng;
+        const dy = end.lat - start.lat;
+
+        if (dx === 0 && dy === 0) {
+            const dist = Math.hypot(targetLatLng.lat - start.lat, targetLatLng.lng - start.lng);
+            if (dist < bestDistance) {
+                bestDistance = dist;
+                bestIndex = index;
+            }
+            continue;
+        }
+
+        const projectedRatio = ((targetLatLng.lat - start.lat) * dy + (targetLatLng.lng - start.lng) * dx) / (dx * dx + dy * dy);
+        const clampedRatio = Math.min(1, Math.max(0, projectedRatio));
+        const projectedLat = start.lat + clampedRatio * dy;
+        const projectedLng = start.lng + clampedRatio * dx;
+        const distance = Math.hypot(targetLatLng.lat - projectedLat, targetLatLng.lng - projectedLng);
+
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = index;
+        }
+    }
+
+    return bestIndex;
+}
+
 function renderLinkLines() {
     lineLayer.clearLayers();
 
@@ -444,6 +486,92 @@ function renderLinkLines() {
 
         const title = link.line_name || `${link.from_name} -> ${link.to_name}`;
         line.bindPopup(`<strong>${escapeHtml(title)}</strong><br>${escapeHtml(link.from_name)} -> ${escapeHtml(link.to_name)}`);
+
+        if (!line._kmzRouteDragBound) {
+            const startRouteDrag = (event) => {
+                if (!isRouteGeometryEditMode) {
+                    return;
+                }
+
+                const linkIdValue = Number(line.options.linkId);
+                if (!linkIdValue) {
+                    return;
+                }
+
+                if (event.originalEvent && typeof event.originalEvent.preventDefault === "function") {
+                    event.originalEvent.preventDefault();
+                }
+
+                const startLatLng = event.latlng;
+                const originalLatLngs = line.getLatLngs().map((latLng) => L.latLng(latLng.lat, latLng.lng));
+                let moved = false;
+
+                const handleMove = (moveEvent) => {
+                    const deltaLat = moveEvent.latlng.lat - startLatLng.lat;
+                    const deltaLng = moveEvent.latlng.lng - startLatLng.lng;
+                    const nextLatLngs = originalLatLngs.map((point) => L.latLng(point.lat + deltaLat, point.lng + deltaLng));
+                    line.setLatLngs(nextLatLngs);
+                    moved = true;
+                };
+
+                const handleUp = async () => {
+                    map.off("mousemove", handleMove);
+                    map.off("mouseup", handleUp);
+                    map.off("touchmove", handleMove);
+                    map.off("touchend", handleUp);
+                    if (!moved) {
+                        return;
+                    }
+
+                    try {
+                        await saveRouteGeometry(linkIdValue, line.getLatLngs());
+                        await loadInfraLinks();
+                    } catch (error) {
+                        window.alert(error.message);
+                        await loadInfraLinks();
+                    }
+                };
+
+                map.on("mousemove", handleMove);
+                map.on("mouseup", handleUp);
+                map.on("touchmove", handleMove);
+                map.on("touchend", handleUp);
+            };
+
+            const addRouteVertex = async (event) => {
+                if (!isRouteGeometryEditMode) {
+                    return;
+                }
+
+                const linkIdValue = Number(line.options.linkId);
+                if (!linkIdValue) {
+                    return;
+                }
+
+                const points = line.getLatLngs().map((latLng) => ({ lat: latLng.lat, lng: latLng.lng }));
+                if (points.length < 2) {
+                    return;
+                }
+
+                const insertIndex = getClosestPolylineSegmentIndex(points, event.latlng) + 1;
+                points.splice(insertIndex, 0, { lat: event.latlng.lat, lng: event.latlng.lng });
+                const nextLatLngs = points.map((point) => L.latLng(point.lat, point.lng));
+                line.setLatLngs(nextLatLngs);
+
+                try {
+                    await saveRouteGeometry(linkIdValue, nextLatLngs);
+                    await loadInfraLinks();
+                } catch (error) {
+                    window.alert(error.message);
+                    await loadInfraLinks();
+                }
+            };
+
+            line.on("mousedown", startRouteDrag);
+            line.on("touchstart", startRouteDrag);
+            line.on("dblclick", addRouteVertex);
+            line._kmzRouteDragBound = true;
+        }
     });
 }
 
