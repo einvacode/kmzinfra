@@ -167,6 +167,9 @@ function updateRouteGeometryEditButton() {
         return;
     }
     editRouteGeometryBtn.textContent = `Edit Bentuk Jalur: ${isRouteGeometryEditMode ? "On" : "Off"}`;
+    editRouteGeometryBtn.title = isRouteGeometryEditMode
+        ? "Klik jalur lalu tarik titik/vertex untuk menyesuaikan bentuk garis."
+        : "Aktifkan mode edit jalur.";
 
     const editToolbar = routeEditControl?._toolbars?.edit;
     if (!editToolbar) {
@@ -441,52 +444,6 @@ function renderLinkLines() {
 
         const title = link.line_name || `${link.from_name} -> ${link.to_name}`;
         line.bindPopup(`<strong>${escapeHtml(title)}</strong><br>${escapeHtml(link.from_name)} -> ${escapeHtml(link.to_name)}`);
-
-        if (!line._kmzRouteDragBound) {
-            line.on("mousedown", (event) => {
-                if (!isRouteGeometryEditMode) {
-                    return;
-                }
-
-                const linkIdValue = Number(line.options.linkId);
-                if (!linkIdValue) {
-                    return;
-                }
-
-                event.originalEvent.preventDefault();
-                const startLatLng = event.latlng;
-                const originalLatLngs = line.getLatLngs().map((latLng) => L.latLng(latLng.lat, latLng.lng));
-                let moved = false;
-
-                const handleMove = (moveEvent) => {
-                    const deltaLat = moveEvent.latlng.lat - startLatLng.lat;
-                    const deltaLng = moveEvent.latlng.lng - startLatLng.lng;
-                    const nextLatLngs = originalLatLngs.map((point) => L.latLng(point.lat + deltaLat, point.lng + deltaLng));
-                    line.setLatLngs(nextLatLngs);
-                    moved = true;
-                };
-
-                const handleUp = async () => {
-                    map.off("mousemove", handleMove);
-                    map.off("mouseup", handleUp);
-                    if (!moved) {
-                        return;
-                    }
-
-                    try {
-                        await saveRouteGeometry(linkIdValue, line.getLatLngs());
-                        await loadInfraLinks();
-                    } catch (error) {
-                        window.alert(error.message);
-                        await loadInfraLinks();
-                    }
-                };
-
-                map.on("mousemove", handleMove);
-                map.on("mouseup", handleUp);
-            });
-            line._kmzRouteDragBound = true;
-        }
     });
 }
 
