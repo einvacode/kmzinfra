@@ -53,6 +53,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 const markerLayer = L.layerGroup().addTo(map);
 const userLocationLayer = L.layerGroup().addTo(map);
 const lineLayer = new L.FeatureGroup().addTo(map);
+const routeVertexLayer = L.layerGroup().addTo(map);
 const routeEditControl = new L.Control.Draw({
     edit: {
         featureGroup: lineLayer,
@@ -71,6 +72,7 @@ let infraLinks = [];
 let isCompactMode = false;
 let isPointEditMode = false;
 let isRouteGeometryEditMode = false;
+let activeRouteLineDrag = null;
 
 function isMapRoutesPage() {
     return document.body.classList.contains("map-routes-page");
@@ -122,6 +124,24 @@ map.on("click", (event) => {
     const { lat, lng } = event.latlng;
     fieldLat.value = lat.toFixed(6);
     fieldLng.value = lng.toFixed(6);
+});
+
+map.on("mousemove", (event) => {
+    if (activeRouteLineDrag) {
+        updateRouteLineDrag(event.latlng);
+    }
+});
+
+map.on("mouseup", () => {
+    if (activeRouteLineDrag) {
+        finishRouteLineDrag();
+    }
+});
+
+window.addEventListener("mouseup", () => {
+    if (activeRouteLineDrag) {
+        finishRouteLineDrag();
+    }
 });
 
 function refreshMapLayout() {
@@ -195,13 +215,21 @@ function updateRouteGeometryEditButton() {
     }
 
     if (isRouteGeometryEditMode) {
+        if (activeRouteLineDrag) {
+            finishRouteLineDrag();
+        }
         disableMapInteractions();
         editToolbar.enable();
+        renderLinkLines();
         return;
     }
 
+    if (activeRouteLineDrag) {
+        finishRouteLineDrag();
+    }
     enableMapInteractions();
     editToolbar.disable();
+    clearRouteVertexMarkers();
     if (editToolbar._activeMode) {
         editToolbar._activeMode.handler.disable();
     }
@@ -433,42 +461,171 @@ function renderLinkPointOptions() {
     linkToId.value = hasPrevTo ? previousTo : String(allInfraData[Math.min(1, allInfraData.length - 1)].id);
 }
 
+function clearRouteVertexMarkers() {
+    routeVertexLayer.clearLayers();
+}
+
 function getClosestPolylineSegmentIndex(points, targetLatLng) {
-    let bestIndex = 0;
-    let bestDistance = Number.POSITIVE_INFINITY;
+    if (!Array.isArray(points) || points.length < 2) {
+        return 0;
+    }
+
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
 
     for (let index = 0; index < points.length - 1; index += 1) {
         const start = points[index];
         const end = points[index + 1];
+
         const dx = end.lng - start.lng;
         const dy = end.lat - start.lat;
+        const lengthSquared = dx * dx + dy * dy;
 
-        if (dx === 0 && dy === 0) {
-            const dist = Math.hypot(targetLatLng.lat - start.lat, targetLatLng.lng - start.lng);
-            if (dist < bestDistance) {
-                bestDistance = dist;
-                bestIndex = index;
+        if (lengthSquared === 0) {
+            const distance = Math.hypot(targetLatLng.lat - start.lat, targetLatLng.lng - start.lng);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = index;
             }
             continue;
         }
 
-        const projectedRatio = ((targetLatLng.lat - start.lat) * dy + (targetLatLng.lng - start.lng) * dx) / (dx * dx + dy * dy);
-        const clampedRatio = Math.min(1, Math.max(0, projectedRatio));
-        const projectedLat = start.lat + clampedRatio * dy;
-        const projectedLng = start.lng + clampedRatio * dx;
+        const t = ((targetLatLng.lng - start.lng) * dx + (targetLatLng.lat - start.lat) * dy) / lengthSquared;
+        const clampedT = Math.min(1, Math.max(0, t));
+        const projectedLat = start.lat + clampedT * dy;
+        const projectedLng = start.lng + clampedT * dx;
         const distance = Math.hypot(targetLatLng.lat - projectedLat, targetLatLng.lng - projectedLng);
 
-        if (distance < bestDistance) {
-            bestDistance = distance;
-            bestIndex = index;
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestIndex = index;
         }
     }
 
-    return bestIndex;
+    return closestIndex;
+}
+
+function syncRouteVertexMarkers(linkIdValue, line) {
+    if (!isRouteGeometryEditMode) {
+        clearRouteVertexMarkers();
+        return;
+    }
+
+    const latLngs = line.getLatLngs();
+    clearRouteVertexMarkers();
+
+    latLngs.forEach((latLng, index) => {
+        const marker = L.circleMarker(latLng, {
+            radius: 6,
+            color: "#f97316",
+            weight: 2,
+            fillColor: "#fff7ed",
+            fillOpacity: 1,
+            opacity: 1,
+            draggable: true,
+            linkId: linkIdValue,
+            vertexIndex: index
+        }).addTo(routeVertexLayer);
+
+        marker.on("mousedown", (event) => {
+            if (event && event.originalEvent) {
+                event.originalEvent.stopPropagation();
+            }
+        });
+
+        marker.on("drag", (event) => {
+            const latLngList = line.getLatLngs();
+            latLngList[index] = event.target.getLatLng();
+            line.setLatLngs(latLngList);
+        });
+
+        marker.on("dragend", async () => {
+            try {
+                await saveRouteGeometry(linkIdValue, line.getLatLngs());
+                await loadInfraLinks();
+            } catch (error) {
+                window.alert(error.message);
+                await loadInfraLinks();
+            }
+        });
+    });
+}
+
+function addRouteVertexAtClick(linkIdValue, line, event) {
+    const points = line.getLatLngs().map((latLng) => ({ lat: latLng.lat, lng: latLng.lng }));
+    if (points.length < 2) {
+        return;
+    }
+
+    const insertIndex = getClosestPolylineSegmentIndex(points, event.latlng) + 1;
+    points.splice(insertIndex, 0, { lat: event.latlng.lat, lng: event.latlng.lng });
+    const nextLatLngs = points.map((point) => L.latLng(point.lat, point.lng));
+    line.setLatLngs(nextLatLngs);
+    syncRouteVertexMarkers(linkIdValue, line);
+
+    saveRouteGeometry(linkIdValue, nextLatLngs)
+        .then(() => loadInfraLinks())
+        .catch((error) => {
+            window.alert(error.message);
+            loadInfraLinks();
+        });
+}
+
+function startRouteLineDrag(line, targetLatLng) {
+    if (!isRouteGeometryEditMode || !line || !line.getLatLngs || line.getLatLngs().length < 2) {
+        return;
+    }
+
+    const lineLatLngs = line.getLatLngs();
+    activeRouteLineDrag = {
+        line,
+        startLatLng: targetLatLng,
+        startPoints: lineLatLngs.map((latLng) => ({ lat: latLng.lat, lng: latLng.lng }))
+    };
+}
+
+function updateRouteLineDrag(targetLatLng) {
+    if (!activeRouteLineDrag || !activeRouteLineDrag.line || !targetLatLng) {
+        return;
+    }
+
+    const { line, startLatLng, startPoints } = activeRouteLineDrag;
+    const deltaLat = targetLatLng.lat - startLatLng.lat;
+    const deltaLng = targetLatLng.lng - startLatLng.lng;
+
+    const nextLatLngs = startPoints.map((point) => L.latLng(point.lat + deltaLat, point.lng + deltaLng));
+    line.setLatLngs(nextLatLngs);
+    const linkIdValue = Number(line.options.linkId);
+    if (Number.isFinite(linkIdValue)) {
+        syncRouteVertexMarkers(linkIdValue, line);
+    }
+}
+
+function finishRouteLineDrag() {
+    if (!activeRouteLineDrag) {
+        return;
+    }
+
+    const { line } = activeRouteLineDrag;
+    const linkIdValue = Number(line.options.linkId);
+    const nextLatLngs = line.getLatLngs();
+    activeRouteLineDrag = null;
+
+    if (!Number.isFinite(linkIdValue)) {
+        return;
+    }
+
+    saveRouteGeometry(linkIdValue, nextLatLngs)
+        .then(() => loadInfraLinks())
+        .catch((error) => {
+            window.alert(error.message);
+            loadInfraLinks();
+        });
 }
 
 function renderLinkLines() {
     lineLayer.clearLayers();
+    clearRouteVertexMarkers();
 
     filteredLinks().forEach((link) => {
         const line = L.polyline(
@@ -487,90 +644,24 @@ function renderLinkLines() {
         const title = link.line_name || `${link.from_name} -> ${link.to_name}`;
         line.bindPopup(`<strong>${escapeHtml(title)}</strong><br>${escapeHtml(link.from_name)} -> ${escapeHtml(link.to_name)}`);
 
-        if (!line._kmzRouteDragBound) {
-            const startRouteDrag = (event) => {
-                if (!isRouteGeometryEditMode) {
-                    return;
-                }
+        line.on("mousedown", (event) => {
+            if (!isRouteGeometryEditMode) {
+                return;
+            }
+            event.originalEvent.preventDefault();
+            event.originalEvent.stopPropagation();
+            startRouteLineDrag(line, event.latlng);
+        });
 
-                const linkIdValue = Number(line.options.linkId);
-                if (!linkIdValue) {
-                    return;
-                }
+        line.on("dblclick", (event) => {
+            if (!isRouteGeometryEditMode) {
+                return;
+            }
+            addRouteVertexAtClick(link.id, line, event);
+        });
 
-                if (event.originalEvent && typeof event.originalEvent.preventDefault === "function") {
-                    event.originalEvent.preventDefault();
-                }
-
-                const startLatLng = event.latlng;
-                const originalLatLngs = line.getLatLngs().map((latLng) => L.latLng(latLng.lat, latLng.lng));
-                let moved = false;
-
-                const handleMove = (moveEvent) => {
-                    const deltaLat = moveEvent.latlng.lat - startLatLng.lat;
-                    const deltaLng = moveEvent.latlng.lng - startLatLng.lng;
-                    const nextLatLngs = originalLatLngs.map((point) => L.latLng(point.lat + deltaLat, point.lng + deltaLng));
-                    line.setLatLngs(nextLatLngs);
-                    moved = true;
-                };
-
-                const handleUp = async () => {
-                    map.off("mousemove", handleMove);
-                    map.off("mouseup", handleUp);
-                    map.off("touchmove", handleMove);
-                    map.off("touchend", handleUp);
-                    if (!moved) {
-                        return;
-                    }
-
-                    try {
-                        await saveRouteGeometry(linkIdValue, line.getLatLngs());
-                        await loadInfraLinks();
-                    } catch (error) {
-                        window.alert(error.message);
-                        await loadInfraLinks();
-                    }
-                };
-
-                map.on("mousemove", handleMove);
-                map.on("mouseup", handleUp);
-                map.on("touchmove", handleMove);
-                map.on("touchend", handleUp);
-            };
-
-            const addRouteVertex = async (event) => {
-                if (!isRouteGeometryEditMode) {
-                    return;
-                }
-
-                const linkIdValue = Number(line.options.linkId);
-                if (!linkIdValue) {
-                    return;
-                }
-
-                const points = line.getLatLngs().map((latLng) => ({ lat: latLng.lat, lng: latLng.lng }));
-                if (points.length < 2) {
-                    return;
-                }
-
-                const insertIndex = getClosestPolylineSegmentIndex(points, event.latlng) + 1;
-                points.splice(insertIndex, 0, { lat: event.latlng.lat, lng: event.latlng.lng });
-                const nextLatLngs = points.map((point) => L.latLng(point.lat, point.lng));
-                line.setLatLngs(nextLatLngs);
-
-                try {
-                    await saveRouteGeometry(linkIdValue, nextLatLngs);
-                    await loadInfraLinks();
-                } catch (error) {
-                    window.alert(error.message);
-                    await loadInfraLinks();
-                }
-            };
-
-            line.on("mousedown", startRouteDrag);
-            line.on("touchstart", startRouteDrag);
-            line.on("dblclick", addRouteVertex);
-            line._kmzRouteDragBound = true;
+        if (isRouteGeometryEditMode) {
+            syncRouteVertexMarkers(link.id, line);
         }
     });
 }
@@ -1410,6 +1501,9 @@ if (editRouteGeometryBtn) {
     editRouteGeometryBtn.addEventListener("click", () => {
         isRouteGeometryEditMode = !isRouteGeometryEditMode;
         updateRouteGeometryEditButton();
+        if (isRouteGeometryEditMode) {
+            renderLinkLines();
+        }
     });
 }
 
