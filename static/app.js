@@ -18,6 +18,8 @@ const linkName = document.getElementById("linkName");
 const addLinkBtn = document.getElementById("addLinkBtn");
 const resetLinkBtn = document.getElementById("resetLinkBtn");
 const exportKmzBtn = document.getElementById("exportKmzBtn");
+const exportExcelBtn = document.getElementById("exportExcelBtn");
+const exportMapImageBtn = document.getElementById("exportMapImageBtn");
 const linkListContainer = document.getElementById("linkListContainer");
 const linkId = document.getElementById("linkId");
 const linkModeBadge = document.getElementById("linkModeBadge");
@@ -1568,6 +1570,49 @@ if (resetLinkBtn) {
 if (exportKmzBtn) {
     exportKmzBtn.addEventListener("click", () => {
         window.location.href = "/api/kmz/export";
+    });
+}
+
+if (exportExcelBtn) {
+    exportExcelBtn.addEventListener("click", () => {
+        window.location.href = "/api/export/excel";
+    });
+}
+
+if (exportMapImageBtn) {
+    exportMapImageBtn.addEventListener("click", async () => {
+        if (!window.html2canvas) {
+            window.alert("Library ekspor gambar peta belum siap. Muat ulang halaman dan coba lagi.");
+            return;
+        }
+
+        const mapContainer = document.getElementById("map");
+        if (!mapContainer) {
+            return;
+        }
+
+        try {
+            exportMapImageBtn.disabled = true;
+            exportMapImageBtn.textContent = "Membuat Gambar...";
+
+            const canvas = await window.html2canvas(mapContainer, {
+                useCORS: true,
+                backgroundColor: "#f4f7fb",
+                scale: 2,
+                logging: false
+            });
+
+            const link = document.createElement("a");
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            link.download = `kmzinfra_map_${timestamp}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        } catch (error) {
+            window.alert(error.message || "Gagal mengekspor gambar peta.");
+        } finally {
+            exportMapImageBtn.disabled = false;
+            exportMapImageBtn.textContent = "Export Gambar Peta";
+        }
     });
 }
 

@@ -1522,6 +1522,92 @@ def export_kmz():
     )
 
 
+@app.route("/api/export/excel", methods=["GET"])
+@login_required
+def export_excel():
+    init_db()
+    db = get_db()
+
+    points = db.execute(
+        """
+        SELECT id, name, infra_type, asset_name, latitude, longitude, address, status, notes
+        FROM infrastructure
+        ORDER BY LOWER(name) ASC, name ASC, id ASC
+        """
+    ).fetchall()
+
+    links = db.execute(
+        """
+        SELECT
+            l.id,
+            l.line_name,
+            f.name AS from_name,
+            f.infra_type AS from_type,
+            t.name AS to_name,
+            t.infra_type AS to_type,
+            l.route_geometry
+        FROM infra_links l
+        JOIN infrastructure f ON f.id = l.from_infra_id
+        JOIN infrastructure t ON t.id = l.to_infra_id
+        ORDER BY LOWER(COALESCE(l.line_name, '')) ASC, LOWER(f.name) ASC, LOWER(t.name) ASC, l.id ASC
+        """
+    ).fetchall()
+
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+
+    points_sheet = workbook.active
+    points_sheet.title = "Titik Infrastruktur"
+    points_sheet.append(["ID", "Nama", "Jenis Infrastruktur", "Jenis Aset", "Latitude", "Longitude", "Alamat", "Status", "Catatan"])
+    for point in points:
+        points_sheet.append([
+            point["id"],
+            point["name"],
+            point["infra_type"],
+            point["asset_name"],
+            point["latitude"],
+            point["longitude"],
+            point["address"],
+            point["status"],
+            point["notes"],
+        ])
+    points_sheet.freeze_panes = "A2"
+    points_sheet.auto_filter.ref = points_sheet.dimensions
+
+    routes_sheet = workbook.create_sheet("Jalur Infrastruktur")
+    routes_sheet.append(["ID", "Nama Jalur", "Titik Awal", "Tipe Awal", "Titik Tujuan", "Tipe Tujuan", "Jumlah Titik"])
+    for link in links:
+        route_geometry = link["route_geometry"] or "[]"
+        try:
+            route_points = len(json.loads(route_geometry) or [])
+        except (TypeError, ValueError, json.JSONDecodeError):
+            route_points = 2
+        routes_sheet.append([
+            link["id"],
+            link["line_name"],
+            link["from_name"],
+            link["from_type"],
+            link["to_name"],
+            link["to_type"],
+            route_points,
+        ])
+    routes_sheet.freeze_panes = "A2"
+    routes_sheet.auto_filter.ref = routes_sheet.dimensions
+
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    filename = f"kmzinfra_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
 @app.route("/api/company-settings", methods=["GET"])
 @login_required
 def get_company_settings():

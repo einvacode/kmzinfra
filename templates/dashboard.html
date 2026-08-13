@@ -67,6 +67,8 @@
                     </select>
                     {% if not is_field_staff %}<button type="button" id="editPointsOnMapBtn" class="btn ghost">Edit Titik: Off</button>{% endif %}
                     {% if not is_field_staff %}<button type="button" id="editRouteGeometryBtn" class="btn ghost">Edit Bentuk Jalur: Off</button>{% endif %}
+                    <button type="button" id="exportExcelBtn" class="btn ghost">Export Excel</button>
+                    <button type="button" id="exportMapImageBtn" class="btn ghost">Export Gambar Peta</button>
                     <button type="button" id="exportKmzBtn" class="btn primary">Export KMZ Jalur</button>
                 </div>
             </div>
@@ -221,6 +223,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="{{ url_for('static', filename='nav.js') }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
