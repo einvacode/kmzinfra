@@ -73,6 +73,7 @@ let isCompactMode = false;
 let isPointEditMode = false;
 let isRouteGeometryEditMode = false;
 let activeRouteLineDrag = null;
+let selectedRouteLineId = null;
 
 function isMapRoutesPage() {
     return document.body.classList.contains("map-routes-page");
@@ -227,6 +228,7 @@ function updateRouteGeometryEditButton() {
     if (activeRouteLineDrag) {
         finishRouteLineDrag();
     }
+    selectedRouteLineId = null;
     enableMapInteractions();
     editToolbar.disable();
     clearRouteVertexMarkers();
@@ -512,6 +514,16 @@ function syncRouteVertexMarkers(linkIdValue, line) {
         return;
     }
 
+    if (selectedRouteLineId === null) {
+        clearRouteVertexMarkers();
+        return;
+    }
+
+    if (Number(linkIdValue) !== Number(selectedRouteLineId)) {
+        clearRouteVertexMarkers();
+        return;
+    }
+
     const latLngs = line.getLatLngs();
     clearRouteVertexMarkers();
 
@@ -616,6 +628,7 @@ function finishRouteLineDrag() {
         return;
     }
 
+    selectedRouteLineId = linkIdValue;
     saveRouteGeometry(linkIdValue, nextLatLngs)
         .then(() => loadInfraLinks())
         .catch((error) => {
@@ -649,19 +662,23 @@ function renderLinkLines() {
             if (!isRouteGeometryEditMode) {
                 return;
             }
+            selectedRouteLineId = link.id;
             event.originalEvent.preventDefault();
             event.originalEvent.stopPropagation();
             startRouteLineDrag(line, event.latlng);
+            syncRouteVertexMarkers(link.id, line);
         });
 
         line.on("dblclick", (event) => {
             if (!isRouteGeometryEditMode) {
                 return;
             }
+            selectedRouteLineId = link.id;
             addRouteVertexAtClick(link.id, line, event);
+            syncRouteVertexMarkers(link.id, line);
         });
 
-        if (isRouteGeometryEditMode) {
+        if (isRouteGeometryEditMode && Number(selectedRouteLineId) === Number(link.id)) {
             syncRouteVertexMarkers(link.id, line);
         }
     });
